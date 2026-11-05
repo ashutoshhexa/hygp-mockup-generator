@@ -1,0 +1,12 @@
+Pattern: poc/pattern-strawberry.png
+Pink and white gingham. One red strawberry with green leaves sits in each white square.
+Apply the pattern only to webbing. Hardware, text, dog, camera, and background stay as in the template.
+
+1. Studio stack — templates/01-studio-stack.jpg
+Edit the first image. The second image is the only fabric pattern. Replace the plain white webbing on every collar and on the leash with that strawberry gingham. The pattern follows the folds, curves, and perspective of the woven straps and looks printed into the fabric. Keep the silver buckles, D-rings, sliders, and leash clip the same shape and silver color. Do not put the pattern on any metal. Keep the white studio background, lighting, shadows, camera angle, product arrangement, and strap widths unchanged. No text.
+
+2. Lifestyle dog — templates/02-lifestyle-dog.png
+Edit the first image. The second image is the only fabric pattern. Replace only the collar and leash webbing with that strawberry gingham, following the curve of the collar and the leash, woven into the fabric. Keep the golden retriever identical: face, fur, pose, tongue, and eyes. Keep the rose gold hardware and the engraved nameplate exactly as they are, including the existing engraved letters. Do not change the park path, trees, or lighting. The pattern must not print onto fur, hardware, or the background.
+
+3. Infographic — templates/03-infographic.jpg
+Edit the first image. The second image is the only fabric pattern. Replace only the white woven strap of the main collar with that strawberry gingham, following the strap. Keep every word of text exactly the same, including "QUALITY IS IN THE DETAILS.", every callout, and "Available in Three Hardware Finishes". Keep the silver buckle, D-ring, and tri-glide on the main collar the same shape. Keep the three small buckle swatches at the bottom exactly gold, rose gold, and silver, with their labels. Do not put the pattern on the buckles or the text. The white background stays.

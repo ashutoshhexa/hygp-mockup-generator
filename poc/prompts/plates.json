@@ -1,0 +1,29 @@
+{
+  "backgrounds": {
+    "rule": "Empty scene only. No collar, no leash, no dog, no pet, no buckle, no text, no logo, no product. Soft, even light from the upper left. The center of the frame is open, flat and uncluttered, so a product can be placed there. Shot from slightly above. Photographic and realistic. Square.",
+    "scenes": [
+      "pale linen tablecloth, a few out-of-focus warm fairy lights in the far background",
+      "white painted wood planks, a sprig of pine and two small red berries in the top-left corner only",
+      "light oak table, blurred Christmas tree bokeh far in the background",
+      "soft cream knit blanket, gentle folds, cozy winter morning light",
+      "white marble countertop, a cinnamon stick and star anise in the top-right corner only",
+      "kraft paper surface, a little twine and a pine cone in one corner only",
+      "frosted pale blue surface with very light snow dust at the edges",
+      "warm beige felt surface, a few gold confetti stars at the edges only",
+      "whitewashed wooden floor by a window, soft snow light",
+      "light sage linen, a eucalyptus sprig in the bottom-left corner only",
+      "cream paper surface, red and white baker's twine at the top edge only",
+      "pale pink linen, soft festive bokeh in the background"
+    ]
+  },
+  "dogs": {
+    "rule": "Photorealistic, high resolution. The dog wears a plain, unprinted WHITE woven nylon collar, about 1 inch wide, fully visible around the front of the neck and not hidden by fur. The collar has a plain SILVER side-release metal buckle facing the camera, with a flat, blank top face and no text, and a silver D-ring. A plain WHITE woven leash with a silver snap hook clips to the D-ring and hangs straight down in front of the chest. No other collar, harness, tag, bandana or text. Sharp focus on the collar. Natural light.",
+    "scenes": [
+      "golden retriever sitting and facing the camera on a park path in autumn, trees softly blurred",
+      "golden retriever sitting in front of a decorated Christmas tree in a cozy living room",
+      "labrador sitting and facing the camera in light snow, winter forest blurred behind",
+      "cavalier spaniel sitting on a cream sofa next to wrapped gifts",
+      "goldendoodle sitting on a front porch with a holiday wreath on the door behind"
+    ]
+  }
+}
