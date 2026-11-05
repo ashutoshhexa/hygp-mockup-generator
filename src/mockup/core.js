@@ -21,6 +21,10 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
+  // Laser-mark colour per finish, from the darkest engraved pixels in real buckle photos
+  // (silver warmth from the photo's white balance removed). Override with template.engraveMarks.
+  const ENGRAVE_MARKS = { silver: [32, 30, 28], gold: [33, 27, 12], rosegold: [31, 17, 10] };
+
   const FINISH_RAMPS = {
     // [luminance stop, r, g, b]
     gold: [[0, 52, 34, 8], [0.35, 150, 112, 38], [0.7, 226, 190, 105], [0.9, 250, 232, 160], [1, 255, 250, 225]],
@@ -895,7 +899,7 @@
       }
     }
 
-    // 4. engraving: the text image is fitted into the PSD's warped slot and multiplied in
+    // 4. engraving: the text image is fitted into the PSD's warped slot and laser-marked in
     for (const op of Lt.engravings) {
       if (mode === 'mask') {
         const A = u8(op.alpha);
@@ -922,7 +926,12 @@
       const chain = mipFor(eng);
       const lvl = Math.max(0, Math.min(chain.length - 1, Math.floor(Math.log2(Math.max(1, texPerPx)))));
       const img = chain[lvl], sc = img.width / eng.width;
-      const depth = template.engraveDepth || 0.78;
+      // Laser mark: a flat, matte dark stain that ignores the metal's reflections.
+      // The letter takes the finish's mark colour (sampled from real buckle photos) and keeps
+      // only a little of the metal underneath, so a highlight crossing it lifts it slightly.
+      const fin = opts.finishBySlot && opts.finishBySlot[op.slot];
+      const mark = ((template.engraveMarks || ENGRAVE_MARKS)[fin] || ENGRAVE_MARKS.silver).map((v) => v / 255);
+      const keep = template.engraveKeep != null ? template.engraveKeep : 0.12;
       each(op.alpha, (k, i) => {
         if (!A[i]) return;
         const ex = ((UV[i] / op.uv.su - ox) / fit) * sc, ey = ((UV[n + i] / op.uv.sv - oy) / fit) * sc;
@@ -930,8 +939,8 @@
         sampleBilinear(img, ex, ey, false, tmp);
         const a = (tmp[3] / 255) * (A[i] / 255);
         if (a <= 0) return;
-        const f = 1 - a * depth;
-        R[k] *= f; G[k] *= f; B[k] *= f;
+        const tr = mark[0] + (R[k] - mark[0]) * keep, tg = mark[1] + (G[k] - mark[1]) * keep, tb = mark[2] + (B[k] - mark[2]) * keep;
+        R[k] += (tr - R[k]) * a; G[k] += (tg - G[k]) * a; B[k] += (tb - B[k]) * a;
       });
     }
 
