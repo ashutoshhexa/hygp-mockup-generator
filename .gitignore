@@ -1,0 +1,15 @@
+node_modules/
+
+# render outputs (regenerate with npm run mockup / the Studio export)
+out/
+poc/out/
+
+# source PSDs are huge; layers.bin is rebuilt from the PSD by src/tools/import-psd.js
+*.psd
+poc/templates/*/layers.bin
+
+# working state written by the Studio
+decisions/preview.json
+decisions/.validate.json
+
+poc/backgrounds/_rejected/
