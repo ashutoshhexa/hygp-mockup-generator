@@ -1674,10 +1674,11 @@
    }
   },
   "threadColor": [
-   112,
-   112,
-   116
+   134,
+   128,
+   119
   ],
+  "threadTint": 0.35,
   "metalPlates": {
    "gold": "poc/templates/creatsy-stack/metal-gold.png",
    "rosegold": "poc/templates/creatsy-stack/metal-rosegold.png",

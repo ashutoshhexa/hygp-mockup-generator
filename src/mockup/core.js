@@ -782,6 +782,19 @@
         if (op.role === 'thread' && Lt.threadColor) col = Lt.threadColor;
         if (mode === 'mask') col = op.role === 'metal' ? [250, 200, 30] : op.role === 'thread' ? [230, 60, 230] : [255, 255, 255];
         const cr = col[0] / 255, cg = col[1] / 255, cb = col[2] / 255;
+        // Seam thread: real stitching picks up some of the webbing colour around it, so the
+        // thread is mixed with the printed pattern underneath (threadTint 0 = flat colour).
+        const tint = op.role === 'thread' && mode !== 'mask' ? Lt.threadTint || 0 : 0;
+        if (tint > 0) {
+          each(op.alpha, (k, i) => {
+            const a = (A[i] / 255) * opac;
+            if (a <= 0) return;
+            const tr = cr + (R[k] - cr) * tint, tg = cg + (G[k] - cg) * tint, tb = cb + (B[k] - cb) * tint;
+            R[k] += (tr - R[k]) * a; G[k] += (tg - G[k]) * a; B[k] += (tb - B[k]) * a;
+          });
+          cover(op, A, opac, finIdx);
+          continue;
+        }
         each(op.alpha, (k, i) => {
           const a = (A[i] / 255) * opac;
           if (a <= 0) return;

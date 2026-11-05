@@ -374,7 +374,7 @@ async function main() {
   const outFile = fromRoot('templates', `${id}.json`);
   if (fs.existsSync(outFile)) {
     const prev = JSON.parse(fs.readFileSync(outFile, 'utf8')).layered || {};
-    for (const k of ['finishRamps', 'finishRampsSource', 'threadColor']) if (prev[k]) template.layered[k] = prev[k];
+    for (const k of ['finishRamps', 'finishRampsSource', 'threadColor', 'threadTint']) if (prev[k]) template.layered[k] = prev[k];
   }
   fs.writeFileSync(outFile, JSON.stringify(template, null, 1) + '\n');
   log(`wrote templates/${id}.json, ${dir} (layers.bin ${(offset / 1e6).toFixed(1)} MB)`);
