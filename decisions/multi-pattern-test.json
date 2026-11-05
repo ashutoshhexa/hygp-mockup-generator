@@ -1,0 +1,15 @@
+{
+  "patternFile": "poc/patterns/image (84).png",
+  "patternLabel": "Christmas mix",
+  "collarPatterns": ["poc/patterns/image (82).png", "poc/patterns/image (84).png", "poc/patterns/image (81).png"],
+  "listing": {
+    "centerColor": "gold",
+    "collars": [
+      { "name": "Cookie", "phone": "555-0148", "font": "Georgia" },
+      { "name": "Frosty", "phone": "555-0173", "font": "Arial" },
+      { "name": "Snowball", "phone": "555-0190", "font": "Calibri" }
+    ],
+    "backgroundPrompt": "Empty pale linen surface in soft winter window light. No collar, no leash, no dog, no buckle, no text, no product.",
+    "backgroundPreset": "frost-blue"
+  }
+}
