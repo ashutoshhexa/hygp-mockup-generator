@@ -2,6 +2,8 @@
 self.importScripts('/mockup/core.js');
 
 const cache = new Map();
+// per template: the last pre-engraving stage (see renderLayered), so a name/font edit only re-engraves
+const stageCaches = new Map();
 
 self.onmessage = (event) => {
   const msg = event.data;
@@ -45,6 +47,8 @@ self.onmessage = (event) => {
         engravingBySlot,
         mode: msg.mode,
         patternScale: msg.patternScale,
+        stageKey: msg.stageKey,
+        stageCache: msg.stageKey ? stageCaches.get(msg.template.id) || stageCaches.set(msg.template.id, {}).get(msg.template.id) : null,
       });
       self.postMessage({ id: msg.id, width: out.width, height: out.height, buffer: out.data.buffer, ms: performance.now() - t0 }, [out.data.buffer]);
     } catch (err) {

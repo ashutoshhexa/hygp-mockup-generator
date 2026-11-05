@@ -272,6 +272,43 @@
     return out;
   }
 
+  // Softened background plate for the most recent background image (the browser worker keeps
+  // assets, so re-rendering with the same background does not blur 6.75 MP again).
+  // One slot only: each full-size plate is ~27 MB.
+  let blurMemo = null;
+  // the background composited over the photo's shadows, for the most recent background
+  let groundMemo = null;
+  function blurredBackground(img, W, H, blurPx) {
+    if (blurPx <= 0) return img.data;
+    if (blurMemo && blurMemo.img === img && blurMemo.blurPx === blurPx) return blurMemo.data;
+    const bg = img.data, soft = new Uint8ClampedArray(bg.length);
+    // The result is very soft (two box passes, sigma ~ blurPx), so it is computed at 1/f size
+    // and upsampled bilinearly: ~9x less work, within 1/255 of the full-size blur on our plates.
+    const f = Math.max(1, Math.floor(blurPx / 2)), r = Math.max(1, Math.round(blurPx / f));
+    const w = Math.ceil(W / f), h = Math.ceil(H / f);
+    const ch = new Float32Array(w * h);
+    for (let c = 0; c < 3; c++) {
+      ch.fill(0);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        let acc = 0, n = 0;
+        for (let yy = y * f; yy < Math.min(H, y * f + f); yy++) for (let xx = x * f; xx < Math.min(W, x * f + f); xx++) { acc += bg[(yy * W + xx) * 4 + c]; n++; }
+        ch[y * w + x] = acc / n;
+      }
+      const small = boxBlur(boxBlur(ch, w, h, r), w, h, r);
+      for (let y = 0; y < H; y++) {
+        const sy = Math.min(h - 1, Math.max(0, (y + 0.5) / f - 0.5)), y0 = Math.floor(sy), y1 = Math.min(h - 1, y0 + 1), fy = sy - y0;
+        for (let x = 0; x < W; x++) {
+          const sx = Math.min(w - 1, Math.max(0, (x + 0.5) / f - 0.5)), x0 = Math.floor(sx), x1 = Math.min(w - 1, x0 + 1), fx = sx - x0;
+          const top = small[y0 * w + x0] + (small[y0 * w + x1] - small[y0 * w + x0]) * fx;
+          const bot = small[y1 * w + x0] + (small[y1 * w + x1] - small[y1 * w + x0]) * fx;
+          soft[(y * W + x) * 4 + c] = top + (bot - top) * fy;
+        }
+      }
+    }
+    blurMemo = { img, blurPx, data: soft };
+    return soft;
+  }
+
   // Local high-pass energy of the photo. Woven webbing is textured; studio background is not.
   function textureMap(base, s) {
     const W = base.width, H = base.height, d = base.data;
@@ -695,40 +732,12 @@
     const od = out.data, bd = below.data;
     const tmp = [0, 0, 0, 0];
 
-    // 1. ground: the baked background, or a new plate carrying the baked shadows
-    if (opts.background && mode !== 'mask') {
-      const blurPx = Math.round(opts.bgBlur != null ? opts.bgBlur : template.bgBlur || 0);
-      const lift = opts.bgLift != null ? opts.bgLift : template.bgLift || 0;
-      let bg = opts.background.data;
-      if (blurPx > 0) {
-        const soft = new Uint8ClampedArray(bg.length);
-        const ch = new Float32Array(W * H);
-        for (let c = 0; c < 3; c++) {
-          for (let i = 0; i < W * H; i++) ch[i] = bg[i * 4 + c];
-          const twice = boxBlur(boxBlur(ch, W, H, blurPx), W, H, blurPx);
-          for (let i = 0; i < W * H; i++) soft[i * 4 + c] = twice[i];
-        }
-        bg = soft;
-      }
-      for (let i = 0; i < W * H; i++) {
-        const j = i * 4;
-        for (let c = 0; c < 3; c++) od[j + c] = (bg[j + c] + (255 - bg[j + c]) * lift) * (bd[j + c] / 255);
-        od[j + 3] = 255;
-      }
-    } else {
-      od.set(bd);
-    }
-
     const all = [...Lt.stack, ...Lt.overlay, ...Lt.engravings];
     const boxes = all.map((o) => o.alpha || o.mask).filter(Boolean);
     const rx0 = Math.min(...boxes.map((b) => b.x)), ry0 = Math.min(...boxes.map((b) => b.y));
     const rx1 = Math.max(...boxes.map((b) => b.x + b.w)), ry1 = Math.max(...boxes.map((b) => b.y + b.h));
     const RW = rx1 - rx0, RH = ry1 - ry0;
     const R = new Float32Array(RW * RH), G = new Float32Array(RW * RH), B = new Float32Array(RW * RH);
-    for (let y = 0; y < RH; y++) for (let x = 0; x < RW; x++) {
-      const j = ((y + ry0) * W + x + rx0) * 4, k = y * RW + x;
-      R[k] = od[j] / 255; G[k] = od[j + 1] / 255; B[k] = od[j + 2] / 255;
-    }
 
     const u8 = (ref) => new Uint8Array(bin.buffer, bin.byteOffset + ref.offset, ref.w * ref.h);
     const u16 = (ref) => {
@@ -766,6 +775,38 @@
         if (metal) { Mcov[k] += (1 - Mcov[k]) * a; Mfin[k] = finIdx; } else Mcov[k] *= 1 - a;
       });
     };
+
+    // Everything before the engraving depends only on opts.stageKey (patterns, finishes,
+    // background, print size). When it is unchanged (typing a name, changing a font) the
+    // cached result is reused and only the engraving step runs. Identical pixels either way.
+    const cache = mode !== 'mask' && opts.stageCache && opts.stageKey ? opts.stageCache : null;
+    if (cache && cache.key === opts.stageKey) {
+      od.set(cache.od); R.set(cache.R); G.set(cache.G); B.set(cache.B);
+    } else {
+
+    // 1. ground: the baked background, or a new plate carrying the baked shadows
+    if (opts.background && mode !== 'mask') {
+      const blurPx = Math.round(opts.bgBlur != null ? opts.bgBlur : template.bgBlur || 0);
+      const lift = opts.bgLift != null ? opts.bgLift : template.bgLift || 0;
+      const g = groundMemo;
+      if (g && g.img === opts.background && g.below === below && g.blurPx === blurPx && g.lift === lift) {
+        od.set(g.data); // same background: pattern / finish edits skip the full-frame composite
+      } else {
+        const bg = blurredBackground(opts.background, W, H, blurPx);
+        for (let i = 0; i < W * H; i++) {
+          const j = i * 4;
+          for (let c = 0; c < 3; c++) od[j + c] = (bg[j + c] + (255 - bg[j + c]) * lift) * (bd[j + c] / 255);
+          od[j + 3] = 255;
+        }
+        groundMemo = { img: opts.background, below, blurPx, lift, data: od.slice() };
+      }
+    } else {
+      od.set(bd);
+    }
+    for (let y = 0; y < RH; y++) for (let x = 0; x < RW; x++) {
+      const j = ((y + ry0) * W + x + rx0) * 4, k = y * RW + x;
+      R[k] = od[j] / 255; G[k] = od[j + 1] / 255; B[k] = od[j + 2] / 255;
+    }
 
     // 2. collar stack, normal blending in PSD order
     for (const op of Lt.stack) {
@@ -851,7 +892,10 @@
         if (op.type === 'levels') {
           const M = u8(op.mask);
           const ib = op.inBlack / 255, iw = op.inWhite / 255, ob = op.outBlack / 255, ow = op.outWhite / 255, gi = 1 / (op.gamma || 1);
-          const lv = (c) => ob + (ow - ob) * Math.pow(clamp((c - ib) / (iw - ib), 0, 1), gi);
+          // 4096-entry table instead of Math.pow per channel (error < 1/4096, far below 8-bit)
+          const LUT = new Float32Array(4097);
+          for (let t = 0; t <= 4096; t++) LUT[t] = ob + (ow - ob) * Math.pow(clamp((t / 4096 - ib) / (iw - ib), 0, 1), gi);
+          const lv = (c) => { const x = clamp(c, 0, 1) * 4096, i0 = x | 0; return i0 >= 4096 ? LUT[4096] : LUT[i0] + (LUT[i0 + 1] - LUT[i0]) * (x - i0); };
           each(op.mask, (k, i) => {
             const m = M[i] / 255;
             if (m <= 0) return;
@@ -911,6 +955,9 @@
         B[k] += ((c0[2] + (c1[2] - c0[2]) * f) / 255 - B[k]) * m;
       }
     }
+
+    if (cache) { cache.key = opts.stageKey; cache.od = od.slice(); cache.R = R.slice(); cache.G = G.slice(); cache.B = B.slice(); }
+    } // end of cached stage
 
     // 4. engraving: the text image is fitted into the PSD's warped slot and laser-marked in
     for (const op of Lt.engravings) {

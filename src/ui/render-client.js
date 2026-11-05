@@ -84,9 +84,23 @@
 
   function backgroundKey(spec, width, height) {
     if (!spec) return Promise.resolve(null);
-    if (spec.kind === 'plain') return ensurePlain(spec.color || '#f5f3ef', width, height);
-    if (spec.kind === 'file') return ensurePixels(`/files/${spec.file}`, width, height, 'cover');
-    return ensurePixels(`/api/background.png?preset=${encodeURIComponent(spec.preset)}&w=${width}&h=${height}`, width, height, 'fill');
+    let p;
+    if (spec.kind === 'plain') p = ensurePlain(spec.color || '#f5f3ef', width, height);
+    else if (spec.kind === 'file') p = ensurePixels(`/files/${spec.file}`, width, height, 'cover');
+    else p = ensurePixels(`/api/background.png?preset=${encodeURIComponent(spec.preset)}&w=${width}&h=${height}`, width, height, 'fill');
+    return p.then((key) => { keepRecentBackground(key); return key; });
+  }
+
+  // full-size backgrounds are ~27 MB each in the worker; keep only the last few
+  const recentBackgrounds = [];
+  function keepRecentBackground(key) {
+    const at = recentBackgrounds.indexOf(key);
+    if (at !== -1) recentBackgrounds.splice(at, 1);
+    recentBackgrounds.push(key);
+    const old = recentBackgrounds.length > 3 ? recentBackgrounds.splice(0, recentBackgrounds.length - 3) : [];
+    if (!old.length) return;
+    worker.postMessage({ type: 'drop', keys: old });
+    for (const k of old) { sentKeys.delete(k); pixelPromises.delete(k); }
   }
 
   // raw binary assets (layered templates: masks + warp UV maps), sent to the worker once
@@ -116,7 +130,32 @@
   /**
    * plan: from MockupPlan.planFrame. Returns {image: ImageData, ms}
    */
-  async function renderPlan(plan, template, patternFile, { mode = 'final', scale } = {}) {
+  /*
+   * Latest wins, per template: while one render is running, newer requests replace each other
+   * and only the newest is rendered next. Superseded requests resolve to null. Without this,
+   * every keystroke queued a full render in the worker.
+   */
+  const lanes = new Map();
+  function renderPlan(plan, template, patternFile, opts = {}) {
+    const lane = lanes.get(template.id) || lanes.set(template.id, { busy: false, next: null }).get(template.id);
+    return new Promise((resolve, reject) => {
+      if (lane.next) lane.next.resolve(null);
+      lane.next = { args: [plan, template, patternFile, opts], resolve, reject };
+      pump(lane);
+    });
+  }
+  function pump(lane) {
+    if (lane.busy || !lane.next) return;
+    const job = lane.next;
+    lane.next = null;
+    lane.busy = true;
+    renderPlanNow(...job.args).then(job.resolve, job.reject).finally(() => { lane.busy = false; pump(lane); });
+  }
+
+  // key order of these maps follows network timing; sort so equal inputs give equal keys
+  const sorted = (obj) => Object.entries(obj || {}).sort(([x], [y]) => (x < y ? -1 : x > y ? 1 : 0));
+
+  async function renderPlanNow(plan, template, patternFile, { mode = 'final', scale } = {}) {
     scale = template.layered ? 1 : scale || previewScale(template);
     const W = Math.round(template.width * scale);
     const H = Math.round(template.height * scale);
@@ -147,11 +186,13 @@
       }));
     }
     const id = nextId++;
+    // everything except the engraving: when this is unchanged the worker reuses its last stage
+    const stageKey = template.layered && mode !== 'mask' ? JSON.stringify([template.id, baseKey, belowKey, binKey, sorted(plateKeys), patternKey, sorted(patternKeys), bgKey, sorted(plan.finishBySlot), mode, plan.patternScale]) : null;
     return new Promise((resolve, reject) => {
       pending.set(id, { resolve, reject });
       worker.postMessage({
         type: 'render', id, template, baseKey, belowKey, binKey, plateKeys, patternKey, patternKeys, bgKey, engravingKeys,
-        finishBySlot: plan.finishBySlot, mode, patternScale: plan.patternScale,
+        finishBySlot: plan.finishBySlot, mode, patternScale: plan.patternScale, stageKey,
       });
     });
   }

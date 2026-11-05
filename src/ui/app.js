@@ -316,6 +316,7 @@
           image = await RenderClient.photoPixels(template, RenderClient.previewScale(template));
         } else {
           const r = await RenderClient.renderPlan(plan, template, state.decision.patternFile, { mode: state.mode });
+          if (!r) return; // superseded by a newer edit
           image = r.image; total += r.ms;
         }
         if (seq !== renderSeq) return;
