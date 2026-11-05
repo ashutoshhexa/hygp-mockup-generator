@@ -91,6 +91,9 @@ function currentDecision() {
     c.font = resolveFontName(c.font);
     if (c.phoneFont) c.phoneFont = resolveFontName(c.phoneFont);
   }
+  // a background file that was removed from the picker falls back to the default preset
+  const l = decision.listing || {};
+  if (l.backgroundFile && !fs.existsSync(fromRoot(l.backgroundFile))) delete l.backgroundFile;
   return decision;
 }
 
@@ -275,5 +278,14 @@ warmFonts()
   .then((fonts) => console.log(`Engraving fonts: ${fonts.map((f) => f.name).join(', ')}`))
   .catch((err) => console.warn(`Engraving fonts unavailable: ${err.message}`))
   .finally(() => server.listen(PORT, '127.0.0.1', () => {
-    console.log(`Listing Studio: http://127.0.0.1:${PORT}`);
+    console.log(`Listing Studio: http://127.0.0.1:${PORT}  (client page: /listing)`);
+    warmBackgrounds();
   }));
+
+// paint every preset at the main photo's size once (cached on disk in cache/backgrounds/)
+async function warmBackgrounds() {
+  const hero = readTemplate(readJson('frames.json').frames[0].template);
+  for (const p of listPresets()) {
+    try { await backgroundPng({ kind: 'preset', preset: p.id }, hero.width, hero.height); } catch (err) { console.warn(`Background ${p.id}: ${err.message}`); }
+  }
+}
