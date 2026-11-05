@@ -75,21 +75,79 @@
   let patternMode = 'same';
 
   function patternTile(p, active, onPick) {
+    const img = p.thumb || `/files/${encodeURI(p.file)}`;
     return el('button', { class: `pattern-tile ${active ? 'active' : ''}`, title: p.label, onclick: onPick },
-      el('div', { class: 'sw', style: `background-image:url("/files/${encodeURI(p.file)}")` }), el('span', {}, p.label));
+      el('div', { class: 'sw', style: `background-image:url("${img}")` }), el('span', {}, p.label));
   }
 
-  function renderPatternPicker() {
+  /* storefront collections -> patterns (src/catalog.js); "local" = files in poc/patterns */
+  const catalog = { collections: [], current: 'local', patterns: new Map(), search: '', loading: false, error: '' };
+
+  async function loadCollections() {
+    try {
+      catalog.collections = (await api('/api/collections')).collections;
+      const def = catalog.collections.find((c) => c.isDefault) || catalog.collections[0];
+      if (def) await selectCollection(def.id);
+    } catch (err) {
+      catalog.error = `Collections unavailable: ${err.message}`;
+      renderPatternPicker();
+    }
+  }
+
+  async function selectCollection(id) {
+    catalog.current = id;
+    catalog.search = '';
+    catalog.error = '';
+    if (id !== 'local' && !catalog.patterns.has(id)) {
+      catalog.loading = true;
+      renderPatternPicker();
+      try { catalog.patterns.set(id, (await api(`/api/collections/${id}/patterns`)).patterns); } catch (err) { catalog.error = err.message; }
+      catalog.loading = false;
+    }
+    renderPatternPicker();
+  }
+
+  function visiblePatterns() {
+    const list = catalog.current === 'local' ? state.patterns : catalog.patterns.get(catalog.current) || [];
+    const q = catalog.search.trim().toLowerCase();
+    return q ? list.filter((p) => p.label.toLowerCase().includes(q)) : list;
+  }
+
+  function catalogBar() {
+    const select = el('select', { 'aria-label': 'Pattern collection', onchange: (e) => selectCollection(e.target.value) },
+      catalog.collections.map((c) => el('option', { value: c.id, selected: c.id === catalog.current }, c.title)),
+      el('option', { value: 'local', selected: catalog.current === 'local' }, 'Local files (poc/patterns)'));
+    const search = el('input', {
+      type: 'search', placeholder: 'Search patterns', value: catalog.search, 'aria-label': 'Search patterns',
+      oninput: (e) => { catalog.search = e.target.value; renderPatternGridOnly(); },
+    });
+    const count = visiblePatterns().length;
+    const note = catalog.loading ? 'Loading patterns…' : catalog.error || `${count} pattern${count === 1 ? '' : 's'}`;
+    return el('div', { class: 'catalog-bar' }, select, search, el('span', { class: `hint ${catalog.error ? 'err' : ''}` }, note));
+  }
+
+  // typing in search re-renders only the grid so the input keeps focus
+  function renderPatternGridOnly() {
+    const grid = $('#patternPicker .pattern-scroll');
+    const fresh = buildPatternBody();
+    if (grid) grid.replaceWith(fresh); else renderPatternPicker();
+    const hint = $('#patternPicker .catalog-bar .hint');
+    if (hint) hint.textContent = `${visiblePatterns().length} patterns`;
+  }
+
+  function pickSame(p) {
     const d = state.decision;
-    $$('#patternModeSeg button').forEach((b) => b.classList.toggle('active', b.dataset.pmode === patternMode));
+    d.patternFile = p.file;
+    d.patternLabel = p.label;
+    renderPatternPicker();
+    decisionChanged();
+  }
+
+  function buildPatternBody() {
+    const d = state.decision;
+    const list = visiblePatterns();
     if (patternMode === 'same') {
-      $('#patternPicker').replaceChildren(el('div', { class: 'pattern-grid' }, state.patterns.map((p) => patternTile(p, d.patternFile === p.file, () => {
-        d.patternFile = p.file;
-        d.patternLabel = p.label;
-        renderPatternPicker();
-        decisionChanged();
-      }))));
-      return;
+      return el('div', { class: 'pattern-scroll' }, el('div', { class: 'pattern-grid' }, list.map((p) => patternTile(p, d.patternFile === p.file, () => pickSame(p)))));
     }
     const a = assignment();
     d.collarPatterns = d.collarPatterns || [null, null, null];
@@ -97,15 +155,22 @@
       const current = MockupPlan.patternForCollar(d, i);
       return el('div', { class: 'row' },
         el('span', {}, el('span', { class: `dot ${a[COLLAR_ROLE[i]]}`, style: 'width:12px;height:12px;border-radius:50%;display:inline-block' }), POSITION[i]),
-        el('div', { class: 'tiles' }, state.patterns.map((p) => patternTile(p, current === p.file, () => {
+        el('div', { class: 'tiles' }, list.map((p) => patternTile(p, current === p.file, () => {
           d.collarPatterns[i] = p.file;
           if (i === 1) { d.patternFile = p.file; d.patternLabel = p.label; }
           renderPatternPicker();
           decisionChanged();
         }))));
     });
-    $('#patternPicker').replaceChildren(el('div', { class: 'per-collar' }, rows,
-      el('p', { class: 'hint', style: 'margin:0' }, 'The leash uses the middle collar\'s pattern.')));
+    return el('div', { class: 'pattern-scroll per-collar' }, rows,
+      el('p', { class: 'hint', style: 'margin:0' }, 'The leash uses the middle collar\'s pattern.'));
+  }
+
+  function renderPatternPicker() {
+    $$('#patternModeSeg button').forEach((b) => b.classList.toggle('active', b.dataset.pmode === patternMode));
+    const d = state.decision;
+    const current = el('p', { class: 'hint current-pattern' }, 'On the belt: ', el('strong', {}, d.patternLabel || d.patternFile || '—'));
+    $('#patternPicker').replaceChildren(catalogBar(), current, buildPatternBody());
   }
 
   function setPatternMode(mode) {
@@ -342,6 +407,7 @@
       state.decision.listing.collars.forEach((c) => { if (names.length && !names.includes(c.font)) c.font = names[0]; });
       buildFrames();
       renderSidebar();
+      loadCollections();
       $$('.tabs button').forEach((b) => b.addEventListener('click', () => switchView(b.dataset.view)));
       $('#modeSelect').addEventListener('change', (e) => { state.mode = e.target.value; scheduleRender(); });
       $$('#patternModeSeg button').forEach((b) => b.addEventListener('click', () => setPatternMode(b.dataset.pmode)));

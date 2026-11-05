@@ -13,6 +13,7 @@ const plan = require('./plan');
 const { fromRoot } = require('../paths');
 const { rasterizeEngraving } = require('../engraving');
 const { paintPreset } = require('../background');
+const { ensurePatternFile } = require('../catalog');
 
 const layerCache = new Map();
 
@@ -77,7 +78,10 @@ async function renderFrame({ templateId, template, scale, background = null, mod
   }
   const loaded = new Map();
   const loadPattern = async (file) => {
-    if (!loaded.has(file)) loaded.set(file, await loadRgba(path.isAbsolute(file) ? file : fromRoot(file)));
+    if (!loaded.has(file)) {
+      const local = (await ensurePatternFile(file)) || (path.isAbsolute(file) ? file : fromRoot(file));
+      loaded.set(file, await loadRgba(local));
+    }
     return loaded.get(file);
   };
   const pattern = await loadPattern(patternFile);

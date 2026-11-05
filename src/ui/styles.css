@@ -220,6 +220,14 @@ p.hint { margin: -4px 0 10px; }
 .per-collar .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
 .per-collar .tiles .pattern-tile .sw { height: 34px; }
 .per-collar .tiles .pattern-tile span { display: none; }
+.catalog-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 10px 0 4px; }
+.catalog-bar select, .catalog-bar input { min-width: 0; width: 100%; }
+.catalog-bar .hint { grid-column: 1 / -1; }
+.catalog-bar .hint.err { color: #b3261e; }
+.current-pattern { margin: 2px 0 8px; }
+.pattern-scroll { max-height: 380px; overflow-y: auto; padding-right: 2px; }
+.pattern-tile span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.per-collar .tiles { max-height: 132px; overflow-y: auto; }
 .finish-chips { margin: 0; }
 .finish-chip { padding: 12px 4px; font-size: 14px; }
 .finish-chip .dot { width: 32px; height: 32px; }

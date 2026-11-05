@@ -11,7 +11,10 @@
  *   /api/decision           POST: save the working decision
  *   /api/export             POST: render all frames at full size into out/listings/
  *   /api/backgrounds        POST: upload an empty background plate
+ *   /api/collections        storefront pattern collections (src/catalog.js)
+ *   /api/collections/:id/patterns   patterns in one collection
  *   /files/...              read-only access to poc/ (photos, patterns, plates)
+ *   /files/cache/patterns/<id>.png  a catalog pattern, downloaded on first use
  */
 const fs = require('fs');
 const http = require('http');
@@ -21,6 +24,7 @@ const { fromRoot } = require('./paths');
 const { FINISHES, decideListing } = require('./decide');
 const { rasterizeEngraving, randomPhone } = require('./engraving');
 const { fontList, warmFonts, resolveFontName, PHONE_FONT, DEFAULT_FONT } = require('./fonts');
+const catalog = require('./catalog');
 const { listPresets } = require('./background');
 const { renderListing, readTemplate, readJson, backgroundPng } = require('./mockup/node-io');
 
@@ -153,6 +157,14 @@ const server = http.createServer(async (req, res) => {
       const f = safeJoin(path.join(__dirname, 'mockup'), p.slice(8));
       return f ? sendFile(res, f) : sendJson(res, 400, { error: 'bad path' });
     }
+    // catalog patterns: downloaded on first use, then served from cache/patterns/
+    if (req.method === 'GET' && p.startsWith('/files/cache/patterns/')) {
+      const f = await catalog.ensurePatternFile(p.slice('/files/'.length));
+      return f ? sendFile(res, f, 'max-age=86400') : sendJson(res, 400, { error: 'bad path' });
+    }
+    if (req.method === 'GET' && p === '/api/collections') return sendJson(res, 200, { collections: await catalog.listCollections() });
+    const cm = p.match(/^\/api\/collections\/(\d+)\/patterns$/);
+    if (req.method === 'GET' && cm) return sendJson(res, 200, { patterns: await catalog.listPatterns(cm[1]) });
     if (req.method === 'GET' && p.startsWith('/files/')) {
       const f = safeJoin(fromRoot('poc'), p.slice('/files/poc/'.length));
       if (!p.startsWith('/files/poc/') || !f) return sendJson(res, 400, { error: 'bad path' });
