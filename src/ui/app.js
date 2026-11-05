@@ -132,13 +132,33 @@
         type: 'text', value: collar[key] || '', placeholder, 'aria-label': `${POSITION[i]} collar ${placeholder}`,
         oninput: (e) => { collar[key] = e.target.value; decisionChanged(); },
       });
-      const font = el('select', { 'aria-label': `${POSITION[i]} collar font`, onchange: (e) => { collar.font = e.target.value; e.target.style.fontFamily = collar.font; decisionChanged(); } },
-        state.fonts.map((f) => el('option', { value: f, selected: f === collar.font }, `Font: ${f}`)));
-      font.style.fontFamily = collar.font;
+      // storefront buckle fonts; the preview image is the storefront's own sample
+      const fontPicker = (key, label, fallback) => {
+        const current = collar[key] || fallback;
+        const info = state.fonts.find((f) => f.name === current);
+        const preview = el('img', { class: 'font-preview', alt: '', src: (info && info.preview) || '' });
+        const select = el('select', {
+          'aria-label': `${POSITION[i]} collar ${label.toLowerCase()}`,
+          onchange: (e) => {
+            collar[key] = e.target.value;
+            const f = state.fonts.find((x) => x.name === collar[key]);
+            preview.src = (f && f.preview) || '';
+            decisionChanged();
+          },
+        }, state.fonts.map((f) => el('option', { value: f.name, selected: f.name === current }, `${label}: ${f.name}`)));
+        return el('div', { class: 'font-pick' }, select, preview);
+      };
+      const phone = el('div', { class: 'phone-row' }, input('phone', '419-555-0148'),
+        el('button', {
+          class: 'mini-btn', title: 'New 419-555-XXXX number', 'aria-label': `${POSITION[i]} collar new phone number`,
+          onclick: async () => { collar.phone = (await api('/api/phone')).phone; renderCollarCards(); decisionChanged(); },
+        }, '↻'));
       return el('div', { class: `collar-row ${role === 'center' ? 'center' : ''}` },
         el('div', { class: 'head' }, el('span', { class: `dot ${finish}` }), `${POSITION[i]} collar`,
           el('small', {}, role === 'center' ? `${MockupPlan.FINISH_LABELS[finish]} · same as leash` : MockupPlan.FINISH_LABELS[finish])),
-        input('name', 'Name'), input('phone', 'Phone'), font);
+        input('name', 'Name'), phone,
+        fontPicker('font', 'Name font', state.fonts[0] && state.fonts[0].name),
+        fontPicker('phoneFont', 'Phone font', state.phoneFont));
     });
     $('#collarCards').replaceChildren(...cards);
   }
@@ -315,10 +335,11 @@
     try {
       const s = await api('/api/state');
       Object.assign(state, {
-        patterns: s.patterns, frames: s.frames, decision: s.decision, fonts: s.fonts,
+        patterns: s.patterns, frames: s.frames, decision: s.decision, fonts: s.fonts, phoneFont: s.phoneFont,
         presets: s.presets, backgroundFiles: s.backgroundFiles, templateList: s.templates,
       });
-      state.decision.listing.collars.forEach((c) => { if (!state.fonts.includes(c.font)) c.font = state.fonts[0]; });
+      const names = state.fonts.map((f) => f.name);
+      state.decision.listing.collars.forEach((c) => { if (names.length && !names.includes(c.font)) c.font = names[0]; });
       buildFrames();
       renderSidebar();
       $$('.tabs button').forEach((b) => b.addEventListener('click', () => switchView(b.dataset.view)));

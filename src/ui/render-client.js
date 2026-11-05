@@ -77,7 +77,8 @@
   }
 
   function engravingUrl(collar) {
-    const q = new URLSearchParams({ name: collar.name || '', phone: collar.phone || '', font: collar.font || 'Arial' });
+    const q = new URLSearchParams({ name: collar.name || '', phone: collar.phone || '', font: collar.font || '' });
+    if (collar.phoneFont) q.set('phoneFont', collar.phoneFont);
     return `/api/engraving.png?${q}`;
   }
 
@@ -130,7 +131,7 @@
     }));
     const engravingKeys = {};
     await Promise.all(Object.entries(plan.collarBySlot || {}).map(async ([slot, collar]) => {
-      if (collar && collar.name) engravingKeys[slot] = await ensurePixels(engravingUrl(collar));
+      if (collar && (collar.name || collar.phone)) engravingKeys[slot] = await ensurePixels(engravingUrl(collar));
     }));
     let belowKey = null, binKey = null;
     const plateKeys = {};

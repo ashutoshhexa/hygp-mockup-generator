@@ -230,7 +230,13 @@ p.hint { margin: -4px 0 10px; }
 .collar-row .head .dot { width: 16px; height: 16px; border-radius: 50%; }
 .collar-row .head small { margin-left: auto; color: var(--ink-3); font-weight: 400; font-size: 12.5px; }
 .collar-row.center { border-color: #d9a59b; background: #fffaf8; }
-.collar-row select { grid-column: 1 / -1; }
+.collar-row select { min-width: 0; width: 100%; }
+.collar-row .font-pick { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 96px; gap: 8px; align-items: center; }
+.collar-row .font-preview { width: 96px; height: 28px; object-fit: contain; background: #fff; border: 1px solid var(--line); border-radius: 6px; }
+.collar-row .font-preview[src=""] { visibility: hidden; }
+.collar-row .phone-row { display: grid; grid-template-columns: 1fr auto; gap: 4px; min-width: 0; }
+.collar-row .phone-row input { min-width: 0; }
+.collar-row .mini-btn { padding: 0 9px; }
 .bg-chip .sw { height: 40px; }
 .bg-chip span { font-size: 12.5px; padding: 4px 7px; }
 .upload { font-size: 13.5px; margin: 0; }

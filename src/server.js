@@ -5,7 +5,8 @@
  *   /              Studio UI (listing preview + template editor)
  *   /api/state     patterns, templates, frames, current decision, presets
  *   /api/templates/:id      GET / POST (save geometry from the editor)
- *   /api/engraving.png      engraving raster, same code path as export
+ *   /api/engraving.png      engraving raster (name, phone, font, phoneFont), same code path as export
+ *   /api/phone              a random 419-555-XXXX number
  *   /api/background.png     background plate preset
  *   /api/decision           POST: save the working decision
  *   /api/export             POST: render all frames at full size into out/listings/
@@ -17,8 +18,9 @@ const http = require('http');
 const path = require('path');
 
 const { fromRoot } = require('./paths');
-const { FINISHES, FONTS, decideListing } = require('./decide');
-const { rasterizeEngraving } = require('./engraving');
+const { FINISHES, decideListing } = require('./decide');
+const { rasterizeEngraving, randomPhone } = require('./engraving');
+const { fontList, warmFonts, resolveFontName, PHONE_FONT, DEFAULT_FONT } = require('./fonts');
 const { listPresets } = require('./background');
 const { renderListing, readTemplate, readJson, backgroundPng } = require('./mockup/node-io');
 
@@ -79,7 +81,13 @@ function listBackgroundFiles() {
 
 function currentDecision() {
   const file = fs.existsSync(WORKING_DECISION) ? WORKING_DECISION : DEFAULT_DECISION;
-  return JSON.parse(fs.readFileSync(file, 'utf8'));
+  const decision = JSON.parse(fs.readFileSync(file, 'utf8'));
+  // older decisions named Windows fonts; map them onto the storefront list
+  for (const c of (decision.listing && decision.listing.collars) || []) {
+    c.font = resolveFontName(c.font);
+    if (c.phoneFont) c.phoneFont = resolveFontName(c.phoneFont);
+  }
+  return decision;
 }
 
 // Templates are hand-edited too, so keep number arrays on one line.
@@ -162,7 +170,8 @@ const server = http.createServer(async (req, res) => {
         frames: readJson('frames.json'),
         decision: currentDecision(),
         finishes: FINISHES,
-        fonts: FONTS,
+        fonts: fontList().map((f) => ({ name: f.name, preview: f.preview })),
+        phoneFont: PHONE_FONT,
         presets: listPresets(),
         backgroundFiles: listBackgroundFiles(),
       });
@@ -181,17 +190,21 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && p === '/api/engraving.png') {
       const name = url.searchParams.get('name') || '';
       const phone = url.searchParams.get('phone') || '';
-      const font = url.searchParams.get('font') || 'Arial';
-      const key = `${name}|${phone}|${font}`;
+      const font = url.searchParams.get('font') || DEFAULT_FONT;
+      const phoneFont = url.searchParams.get('phoneFont') || PHONE_FONT;
+      const key = `${name}|${phone}|${font}|${phoneFont}`;
       let png = engravingCache.get(key);
       if (!png) {
-        png = rasterizeEngraving({ name, phone, font });
+        png = await rasterizeEngraving({ name, phone, font, phoneFont });
+        if (!png) { res.writeHead(204); return res.end(); }
         if (engravingCache.size > 200) engravingCache.clear();
         engravingCache.set(key, png);
       }
       res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'max-age=3600' });
       return res.end(png);
     }
+
+    if (req.method === 'GET' && p === '/api/phone') return sendJson(res, 200, { phone: randomPhone() });
 
     if (req.method === 'GET' && p === '/api/background.png') {
       const w = Math.min(4096, Number(url.searchParams.get('w')) || 1024);
@@ -245,6 +258,10 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`Listing Studio: http://127.0.0.1:${PORT}`);
-});
+// storefront engraving fonts are fetched (and cached) before the Studio opens
+warmFonts()
+  .then((fonts) => console.log(`Engraving fonts: ${fonts.map((f) => f.name).join(', ')}`))
+  .catch((err) => console.warn(`Engraving fonts unavailable: ${err.message}`))
+  .finally(() => server.listen(PORT, '127.0.0.1', () => {
+    console.log(`Listing Studio: http://127.0.0.1:${PORT}`);
+  }));
