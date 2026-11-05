@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Listing preview</title>
+  <style>
+    :root { color-scheme: light; }
+    body { margin: 0; font: 15px/1.4 system-ui, sans-serif; background: #f6f4f1; color: #1c1917; }
+    header { padding: 20px 24px 0; }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    p { margin: 0; color: #57534e; }
+    main { display: grid; grid-template-columns: 320px 1fr; gap: 24px; padding: 20px 24px 40px; }
+    form { background: white; border-radius: 12px; padding: 16px; display: grid; gap: 12px; align-content: start; }
+    label { display: grid; gap: 4px; font-size: 13px; }
+    input, select, button { font: inherit; }
+    input, select { padding: 8px; border: 1px solid #d6d3d1; border-radius: 8px; }
+    fieldset { border: 1px solid #e7e5e4; border-radius: 8px; margin: 0; }
+    legend { padding: 0 6px; }
+    .row { display: grid; gap: 8px; }
+    button { padding: 10px 12px; border: 0; border-radius: 8px; background: #1c1917; color: white; cursor: pointer; }
+    button:disabled { opacity: 0.6; cursor: wait; }
+    #status { min-height: 2.8em; }
+    .shots { display: grid; gap: 16px; }
+    figure { margin: 0; background: white; border-radius: 12px; padding: 12px; }
+    figcaption { font-weight: 600; margin-bottom: 8px; }
+    img { width: 100%; height: auto; display: block; background: #eee; }
+    @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Listing preview</h1>
+    <p>The pattern, metal color, and names are applied in code. This page does not ask an image model to draw the collar.</p>
+  </header>
+  <main>
+    <form id="form">
+      <label>Pattern
+        <select name="patternFile" id="patternFile"></select>
+      </label>
+      <label>Center color (leash matches this)
+        <select name="centerColor" id="centerColor"></select>
+      </label>
+      <fieldset>
+        <legend>Left</legend>
+        <div class="row" id="collar0"></div>
+      </fieldset>
+      <fieldset>
+        <legend>Center</legend>
+        <div class="row" id="collar1"></div>
+      </fieldset>
+      <fieldset>
+        <legend>Right</legend>
+        <div class="row" id="collar2"></div>
+      </fieldset>
+      <button type="submit" id="go">Update listing</button>
+      <div id="status"></div>
+    </form>
+    <section class="shots">
+      <figure>
+        <figcaption>Hero</figcaption>
+        <img id="hero" alt="Hero listing image" />
+      </figure>
+      <figure>
+        <figcaption>Colors</figcaption>
+        <img id="colors" alt="Color set listing image" />
+      </figure>
+      <figure>
+        <figcaption>Dog</figcaption>
+        <img id="dog" alt="Dog listing image" />
+      </figure>
+    </section>
+  </main>
+  <script>
+    const form = document.querySelector('#form');
+    const status = document.querySelector('#status');
+    const go = document.querySelector('#go');
+    let fonts = [];
+
+    function collarFields(index, collar) {
+      const root = document.querySelector('#collar' + index);
+      root.innerHTML = '';
+      const name = field('Name', 'text', collar.name);
+      const phone = field('Phone', 'text', collar.phone);
+      const font = document.createElement('select');
+      fonts.forEach((item) => {
+        const option = document.createElement('option');
+        option.value = item;
+        option.textContent = item;
+        if (item === collar.font) option.selected = true;
+        font.appendChild(option);
+      });
+      root.append(name.label, phone.label, labeled('Font', font));
+      root._inputs = { name: name.input, phone: phone.input, font };
+    }
+
+    function field(labelText, type, value) {
+      const input = document.createElement('input');
+      input.type = type;
+      input.value = value || '';
+      return { label: labeled(labelText, input), input };
+    }
+
+    function labeled(text, control) {
+      const label = document.createElement('label');
+      label.append(document.createTextNode(text), control);
+      return label;
+    }
+
+    function fillSelect(select, items, selected, labelOf) {
+      select.innerHTML = '';
+      items.forEach((item) => {
+        const option = document.createElement('option');
+        option.value = typeof item === 'string' ? item : item.file;
+        option.textContent = labelOf(item);
+        if (option.value === selected) option.selected = true;
+        select.appendChild(option);
+      });
+    }
+
+    function showImages(images) {
+      if (images.hero) document.querySelector('#hero').src = images.hero;
+      if (images.colors) document.querySelector('#colors').src = images.colors;
+      if (images.dog) document.querySelector('#dog').src = images.dog;
+    }
+
+    async function load() {
+      const state = await fetch('/api/state').then((res) => res.json());
+      fonts = state.fonts;
+      const decision = state.decision;
+      fillSelect(document.querySelector('#patternFile'), state.patterns, decision.patternFile, (item) => item.label);
+      fillSelect(document.querySelector('#centerColor'), state.finishes, decision.listing.centerColor, (item) => item);
+      decision.listing.collars.forEach((collar, index) => collarFields(index, collar));
+      showImages(state.images);
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      go.disabled = true;
+      status.textContent = 'Working. A new pattern re-renders the scans and can take about a minute. A name or color change on the current pattern is quicker.';
+      const collars = [0, 1, 2].map((index) => {
+        const root = document.querySelector('#collar' + index);
+        return {
+          name: root._inputs.name.value,
+          phone: root._inputs.phone.value,
+          font: root._inputs.font.value,
+        };
+      });
+      try {
+        const res = await fetch('/api/render', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            patternFile: document.querySelector('#patternFile').value,
+            centerColor: document.querySelector('#centerColor').value,
+            collars,
+          }),
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body.error || 'Update failed');
+        showImages(body.images);
+        status.textContent = body.skippedRender
+          ? 'Updated from the scans already on disk.'
+          : 'Rendered the scans, then built the three images.';
+      } catch (err) {
+        status.textContent = err.message;
+      } finally {
+        go.disabled = false;
+      }
+    });
+
+    load().catch((err) => { status.textContent = err.message; });
+  </script>
+</body>
+</html>

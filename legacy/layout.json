@@ -1,0 +1,48 @@
+{
+  "canvas": {
+    "hero": { "width": 2000, "height": 1500 },
+    "colors": { "width": 2000, "height": 1500 }
+  },
+  "colorsGround": "#f4f1ec",
+  "finishes": {
+    "gold": { "metalHexCode": "#fdee60", "plasticHexCode": "#ECCA85" },
+    "rosegold": { "metalHexCode": "#fdc29e", "plasticHexCode": "#e69c84" },
+    "silver": { "metalHexCode": "#ececec", "plasticHexCode": "#c2beb2" }
+  },
+  "sideOrder": ["gold", "rosegold", "silver"],
+  "render": {
+    "productSize": "Medium Narrow",
+    "hardwareKind": "metal",
+    "box": 1400,
+    "padding": 24
+  },
+  "hero": {
+    "background": "scene",
+    "slots": {
+      "leash": { "x": 0.03, "y": 0.04, "w": 0.94, "h": 0.32, "rotate": "horizontal", "fit": "contain" },
+      "left": { "x": 0.00, "y": 0.36, "w": 0.36, "h": 0.58, "rotate": 0, "fit": "contain" },
+      "center": { "x": 0.31, "y": 0.38, "w": 0.38, "h": 0.58, "rotate": 0, "fit": "contain" },
+      "right": { "x": 0.64, "y": 0.36, "w": 0.36, "h": 0.58, "rotate": 0, "fit": "contain" }
+    },
+    "engraving": { "nx": 0.34, "ny": 0.26, "nw": 0.16, "nh": 0.48 }
+  },
+  "colors": {
+    "background": "plain",
+    "slots": {
+      "leash": { "x": 0.03, "y": 0.04, "w": 0.94, "h": 0.32, "rotate": "horizontal", "fit": "contain" },
+      "left": { "x": 0.00, "y": 0.36, "w": 0.36, "h": 0.58, "rotate": 0, "fit": "contain" },
+      "center": { "x": 0.31, "y": 0.38, "w": 0.38, "h": 0.58, "rotate": 0, "fit": "contain" },
+      "right": { "x": 0.64, "y": 0.36, "w": 0.36, "h": 0.58, "rotate": 0, "fit": "contain" }
+    },
+    "engraving": { "nx": 0.34, "ny": 0.26, "nw": 0.16, "nh": 0.48 }
+  },
+  "dog": {
+    "plate": "poc/templates/02-lifestyle-dog.png",
+    "outputWidth": 1600,
+    "slots": {
+      "collar": { "x": 0.18, "y": 0.41, "w": 0.64, "h": 0.15, "rotate": 0, "fit": "contain" },
+      "leash": { "x": 0.36, "y": 0.54, "w": 0.28, "h": 0.44, "rotate": "vertical", "fit": "contain" }
+    },
+    "engraving": { "nx": 0.34, "ny": 0.26, "nw": 0.16, "nh": 0.48 }
+  }
+}
