@@ -10,6 +10,7 @@ center finish, background), and, optionally, an empty background image with no p
 
 ```
 npm run studio      # http://127.0.0.1:4173  - live preview + template editor
+                    # http://127.0.0.1:4173/listing - client page: main photo only, live settings, Download photo
 npm run mockup      # CLI: renders decisions/christmas-gingerbread.json into out/listings/<pattern>/
 node src/run.js --decision decisions/preview.json --mode uv   # print-direction check
 ```
@@ -30,7 +31,8 @@ the UI). Empty entries fall back to `patternFile`. The leash uses the middle col
 ```
 set XAI_API_KEY=...
 set XAI_IMAGE_MODEL=<image model id>
-npm run plates:bg       # empty scenes -> poc/backgrounds/ (they show up in the UI's background picker)
+npm run plates:bg       # empty scenes -> poc/backgrounds/ (they show up in the UI's background picker;
+                        # the earlier AI plates were moved to poc/backgrounds/_ai-generated/ and are not offered)
 npm run plates:dogs     # dogs in a plain WHITE collar + leash -> poc/dogs/ (review, then trace one as a template)
 node src/generate-plates.js --kind dogs --dry-run   # print the prompts without calling the API
 ```
@@ -60,6 +62,9 @@ other two finishes fill the side slots in a fixed order.
 - `src/mockup/core.js`: the renderer. Pure pixel math, shared by the browser and Node.
 - `src/mockup/node-io.js`: Node I/O (sharp, resvg engraving), used by the CLI and the export endpoint.
 - `src/ui/`: Listing Studio (listing preview + template editor, with rendering in a Web Worker).
+  `listing.html/js/css` is the client page at `/listing`: the main photo only, downloaded straight from the preview canvas.
+- `src/background.js`: code-drawn background presets (cached in `cache/backgrounds/`).
+- `src/tools/tone-plate.js`: re-tints a baked metal plate toward the real buckle colour (used for rose gold).
 - `legacy/`: the earlier GLB-render-and-paste attempt. Kept for reference only.
 
 ## Adding a template

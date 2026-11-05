@@ -2,10 +2,11 @@
 
 /**
  * Listing Studio server.
+ *   /listing       client page: the main Etsy photo only, with a download button
  *   /              Studio UI (listing preview + template editor)
  *   /api/state     patterns, templates, frames, current decision, presets
  *   /api/templates/:id      GET / POST (save geometry from the editor)
- *   /api/engraving.png      engraving raster (name, phone, font, phoneFont), same code path as export
+ *   /api/engraving.png      engraving raster (name, phone, font, phoneFont, w), same code path as export
  *   /api/phone              a random 419-555-XXXX number
  *   /api/background.png     background plate preset
  *   /api/decision           POST: save the working decision
@@ -152,6 +153,7 @@ const server = http.createServer(async (req, res) => {
   const p = url.pathname;
   try {
     if (req.method === 'GET' && (p === '/' || p === '/index.html')) return sendFile(res, path.join(__dirname, 'ui', 'index.html'));
+    if (req.method === 'GET' && (p === '/listing' || p === '/listing/')) return sendFile(res, path.join(__dirname, 'ui', 'listing.html'));
     if (req.method === 'GET' && p.startsWith('/ui/')) {
       const f = safeJoin(path.join(__dirname, 'ui'), p.slice(4));
       return f ? sendFile(res, f) : sendJson(res, 400, { error: 'bad path' });
@@ -207,12 +209,14 @@ const server = http.createServer(async (req, res) => {
       const phone = url.searchParams.get('phone') || '';
       const font = url.searchParams.get('font') || DEFAULT_FONT;
       const phoneFont = url.searchParams.get('phoneFont') || PHONE_FONT;
-      const key = `${name}|${phone}|${font}|${phoneFont}`;
+      // w: smaller rasters for the font picker tiles; the buckle itself uses the default 1400
+      const width = Math.max(120, Math.min(1400, Number(url.searchParams.get('w')) || 1400));
+      const key = `${name}|${phone}|${font}|${phoneFont}|${width}`;
       let png = engravingCache.get(key);
       if (!png) {
-        png = await rasterizeEngraving({ name, phone, font, phoneFont });
+        png = await rasterizeEngraving({ name, phone, font, phoneFont, width });
         if (!png) { res.writeHead(204); return res.end(); }
-        if (engravingCache.size > 200) engravingCache.clear();
+        if (engravingCache.size > 600) engravingCache.clear();
         engravingCache.set(key, png);
       }
       res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'max-age=3600' });
