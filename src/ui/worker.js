@@ -28,6 +28,8 @@ self.onmessage = (event) => {
       };
       const patternBySlot = {};
       for (const [slot, key] of Object.entries(msg.patternKeys || {})) patternBySlot[slot] = get(key);
+      const metalPlates = {};
+      for (const [fin, key] of Object.entries(msg.plateKeys || {})) metalPlates[fin] = get(key);
       const engravingBySlot = {};
       for (const [slot, key] of Object.entries(msg.engravingKeys || {})) engravingBySlot[slot] = get(key);
       const out = self.MockupCore.render({
@@ -35,6 +37,7 @@ self.onmessage = (event) => {
         base: get(msg.baseKey),
         below: get(msg.belowKey),
         layerData: get(msg.binKey),
+        metalPlates,
         pattern: get(msg.patternKey),
         patternBySlot,
         background: get(msg.bgKey),

@@ -133,17 +133,23 @@
       if (collar && collar.name) engravingKeys[slot] = await ensurePixels(engravingUrl(collar));
     }));
     let belowKey = null, binKey = null;
+    const plateKeys = {};
     if (template.layered) {
       [belowKey, binKey] = await Promise.all([
         ensurePixels(`/files/${template.layered.below}`, W, H, 'fill'),
         ensureBin(`/files/${template.layered.bin}`),
       ]);
+      // baked metal plates, only for the finishes in use
+      const used = new Set(Object.values(plan.finishBySlot || {}));
+      await Promise.all(Object.entries(template.layered.metalPlates || {}).map(async ([fin, file]) => {
+        if (used.has(fin)) plateKeys[fin] = await ensurePixels(`/files/${file}`, W, H, 'fill');
+      }));
     }
     const id = nextId++;
     return new Promise((resolve, reject) => {
       pending.set(id, { resolve, reject });
       worker.postMessage({
-        type: 'render', id, template, baseKey, belowKey, binKey, patternKey, patternKeys, bgKey, engravingKeys,
+        type: 'render', id, template, baseKey, belowKey, binKey, plateKeys, patternKey, patternKeys, bgKey, engravingKeys,
         finishBySlot: plan.finishBySlot, mode, patternScale: plan.patternScale,
       });
     });

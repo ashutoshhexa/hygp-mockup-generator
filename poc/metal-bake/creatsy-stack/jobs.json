@@ -1,0 +1,170 @@
+[
+  {
+    "finish": "gold",
+    "area": "top-loop",
+    "ratio": "1:1",
+    "input": "poc/metal-bake/creatsy-stack/padded/gold/top-loop.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-gold.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished yellow gold finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "gold",
+    "area": "top-buckle",
+    "ratio": "16:9",
+    "input": "poc/metal-bake/creatsy-stack/padded/gold/top-buckle.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-gold.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished yellow gold finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "gold",
+    "area": "middle-loop",
+    "ratio": "9:16",
+    "input": "poc/metal-bake/creatsy-stack/padded/gold/middle-loop.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-gold.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished yellow gold finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "gold",
+    "area": "middle-buckle",
+    "ratio": "16:9",
+    "input": "poc/metal-bake/creatsy-stack/padded/gold/middle-buckle.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-gold.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished yellow gold finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "gold",
+    "area": "bottom-buckle",
+    "ratio": "16:9",
+    "input": "poc/metal-bake/creatsy-stack/padded/gold/bottom-buckle.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-gold.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished yellow gold finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "gold",
+    "area": "middle-dring",
+    "ratio": "4:3",
+    "input": "poc/metal-bake/creatsy-stack/padded/gold/middle-dring.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-gold.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished yellow gold finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "gold",
+    "area": "top-loop-base",
+    "ratio": "1:1",
+    "input": "poc/metal-bake/creatsy-stack/padded/gold/top-loop-base.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-gold.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished yellow gold finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "rosegold",
+    "area": "top-loop",
+    "ratio": "1:1",
+    "input": "poc/metal-bake/creatsy-stack/padded/rosegold/top-loop.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-rosegold.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished rose gold finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "rosegold",
+    "area": "top-buckle",
+    "ratio": "16:9",
+    "input": "poc/metal-bake/creatsy-stack/padded/rosegold/top-buckle.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-rosegold.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished rose gold finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "rosegold",
+    "area": "middle-loop",
+    "ratio": "9:16",
+    "input": "poc/metal-bake/creatsy-stack/padded/rosegold/middle-loop.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-rosegold.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished rose gold finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "rosegold",
+    "area": "middle-buckle",
+    "ratio": "16:9",
+    "input": "poc/metal-bake/creatsy-stack/padded/rosegold/middle-buckle.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-rosegold.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished rose gold finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "rosegold",
+    "area": "bottom-buckle",
+    "ratio": "16:9",
+    "input": "poc/metal-bake/creatsy-stack/padded/rosegold/bottom-buckle.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-rosegold.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished rose gold finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "rosegold",
+    "area": "middle-dring",
+    "ratio": "4:3",
+    "input": "poc/metal-bake/creatsy-stack/padded/rosegold/middle-dring.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-rosegold.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished rose gold finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "rosegold",
+    "area": "top-loop-base",
+    "ratio": "1:1",
+    "input": "poc/metal-bake/creatsy-stack/padded/rosegold/top-loop-base.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-rosegold.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished rose gold finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "silver",
+    "area": "top-loop",
+    "ratio": "1:1",
+    "input": "poc/metal-bake/creatsy-stack/padded/silver/top-loop.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-silver.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished silver (chrome-like stainless steel) finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "silver",
+    "area": "top-buckle",
+    "ratio": "16:9",
+    "input": "poc/metal-bake/creatsy-stack/padded/silver/top-buckle.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-silver.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished silver (chrome-like stainless steel) finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "silver",
+    "area": "middle-loop",
+    "ratio": "9:16",
+    "input": "poc/metal-bake/creatsy-stack/padded/silver/middle-loop.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-silver.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished silver (chrome-like stainless steel) finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "silver",
+    "area": "middle-buckle",
+    "ratio": "16:9",
+    "input": "poc/metal-bake/creatsy-stack/padded/silver/middle-buckle.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-silver.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished silver (chrome-like stainless steel) finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "silver",
+    "area": "bottom-buckle",
+    "ratio": "16:9",
+    "input": "poc/metal-bake/creatsy-stack/padded/silver/bottom-buckle.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-silver.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished silver (chrome-like stainless steel) finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "silver",
+    "area": "middle-dring",
+    "ratio": "4:3",
+    "input": "poc/metal-bake/creatsy-stack/padded/silver/middle-dring.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-silver.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished silver (chrome-like stainless steel) finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  },
+  {
+    "finish": "silver",
+    "area": "top-loop-base",
+    "ratio": "1:1",
+    "input": "poc/metal-bake/creatsy-stack/padded/silver/top-loop-base.png",
+    "reference": "poc/metal-bake/creatsy-stack/reference-silver.png",
+    "prompt": "Reproduce the FIRST reference image exactly - identical framing, camera, composition, every object in the same position and the same size, the same grey bands at the edges, the same fabric with the same pattern placement and the same stitching. The ONLY change: the metal hardware (side-release buckle, D-ring, slide loops) gets a premium polished silver (chrome-like stainless steel) finish like the buckle in the SECOND reference image: crisp bevelled edges, bright highlight lines along each chamfer, subtle darker reflection bands, smooth polished gradient on flat faces. Keep the metal colour as in the first image. Do not change the shape, outline, thickness or design of any metal part. No text, no engraving, no logo, no zoom, no crop."
+  }
+]

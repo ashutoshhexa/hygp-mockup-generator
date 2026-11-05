@@ -57,9 +57,18 @@ async function renderFrame({ templateId, template, scale, background = null, mod
   const W = Math.round(template.width * scale);
   const H = Math.round(template.height * scale);
   const base = await loadRgba(fromRoot(template.base), W, H);
-  let below = null, layerData = null;
+  let below = null, layerData = null, metalPlates = null;
   if (template.layered) {
     below = await loadRgba(fromRoot(template.layered.below), W, H);
+    if (template.layered.metalPlates) {
+      metalPlates = {};
+      const wanted = new Set(Object.values(finishBySlot || {}));
+      for (const [fin, file] of Object.entries(template.layered.metalPlates)) {
+        if (!wanted.has(fin) || !fs.existsSync(fromRoot(file))) continue;
+        if (!layerCache.has(file)) layerCache.set(file, await loadRgba(fromRoot(file), W, H));
+        metalPlates[fin] = layerCache.get(file);
+      }
+    }
     layerData = layerCache.get(template.layered.bin);
     if (!layerData) {
       layerData = new Uint8Array(fs.readFileSync(fromRoot(template.layered.bin)));
@@ -82,7 +91,7 @@ async function renderFrame({ templateId, template, scale, background = null, mod
   }
   const bgPng = await backgroundPng(background, W, H);
   const bg = bgPng ? await bufferToRgba(bgPng) : null;
-  const out = core.render({ template, base, below, layerData, pattern, patternBySlot, finishBySlot, engravingBySlot, background: bg, mode, patternScale });
+  const out = core.render({ template, base, below, layerData, metalPlates, pattern, patternBySlot, finishBySlot, engravingBySlot, background: bg, mode, patternScale });
   return sharp(Buffer.from(out.data.buffer), { raw: { width: out.width, height: out.height, channels: 4 } })
     .removeAlpha()
     .png()

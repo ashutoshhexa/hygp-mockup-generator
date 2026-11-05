@@ -746,16 +746,36 @@
     const patternScale = opts.patternScale || template.patternScale || 1;
     const edges = [];
 
+    // Finish ramps (fitted to reference photos by src/tools/fit-finishes.js): metal is painted
+    // with the PSD's own neutral fill, shaded by the overlay stack, then each metal pixel is
+    // recoloured by its shaded brightness, so shadows, body and highlights all get the real tint.
+    const ramps = mode !== 'mask' && (Lt.finishRamps || opts.metalProbe) ? Lt.finishRamps || {} : null;
+    const rampNames = ramps ? Object.keys(ramps) : [];
+    const Mcov = ramps ? new Float32Array(RW * RH) : null;
+    const Mfin = ramps ? new Uint8Array(RW * RH) : null;
+    const cover = (op, A, opac, finIdx) => {
+      if (!Mcov) return;
+      const metal = op.role === 'metal';
+      each(op.alpha, (k, i) => {
+        const a = (A[i] / 255) * opac;
+        if (a <= 0) return;
+        if (metal) { Mcov[k] += (1 - Mcov[k]) * a; Mfin[k] = finIdx; } else Mcov[k] *= 1 - a;
+      });
+    };
+
     // 2. collar stack, normal blending in PSD order
     for (const op of Lt.stack) {
       const A = u8(op.alpha), opac = op.opacity == null ? 1 : op.opacity;
       if (mode === 'mask') edges.push(op);
       if (op.type === 'fill') {
         let col = op.color;
+        let finIdx = 0;
         if (op.role === 'metal') {
           const fin = (opts.finishBySlot && opts.finishBySlot[op.slot]) || 'silver';
-          col = (Lt.finishes && Lt.finishes[fin]) || col;
+          if (ramps) finIdx = Math.max(0, rampNames.indexOf(fin)); // keep the neutral PSD fill
+          else col = (Lt.finishes && Lt.finishes[fin]) || col;
         }
+        if (op.role === 'thread' && Lt.threadColor) col = Lt.threadColor;
         if (mode === 'mask') col = op.role === 'metal' ? [250, 200, 30] : op.role === 'thread' ? [230, 60, 230] : [255, 255, 255];
         const cr = col[0] / 255, cg = col[1] / 255, cb = col[2] / 255;
         each(op.alpha, (k, i) => {
@@ -763,6 +783,7 @@
           if (a <= 0) return;
           R[k] += (cr - R[k]) * a; G[k] += (cg - G[k]) * a; B[k] += (cb - B[k]) * a;
         });
+        cover(op, A, opac, finIdx);
         continue;
       }
       if (op.type === 'pattern') {
@@ -803,6 +824,7 @@
           sampleWrap(img, u * ku, v * ku, tmp);
           R[k] += (tmp[0] / 255 - R[k]) * a; G[k] += (tmp[1] / 255 - G[k]) * a; B[k] += (tmp[2] / 255 - B[k]) * a;
         });
+        cover(op, A, opac, 0);
       }
     }
 
@@ -839,6 +861,37 @@
             B[k] += (clamp(l + (B[k] - l) * f, 0, 1) - B[k]) * m;
           });
         }
+      }
+    }
+
+    // 3b. finish ramps on the shaded metal
+    if (Mcov) {
+      const probe = opts.metalProbe;
+      if (probe) { probe.lum = []; probe.fin = []; }
+      for (let k = 0; k < RW * RH; k++) {
+        const m = Mcov[k];
+        if (m <= 0) continue;
+        const l = clamp(0.2126 * R[k] + 0.7152 * G[k] + 0.0722 * B[k], 0, 1);
+        if (probe && m > 0.98) { probe.lum.push(l); probe.fin.push(Mfin[k]); }
+        // baked metal plate (src/tools/metal-bake.js) for this finish, where it has pixels
+        const plate = opts.metalPlates && opts.metalPlates[rampNames[Mfin[k]]];
+        if (plate) {
+          const px = (k % RW) + rx0, py = ((k / RW) | 0) + ry0, j = (py * W + px) * 4;
+          if (plate.data[j + 3] > 0) {
+            const pa = (plate.data[j + 3] / 255) * m;
+            R[k] += (plate.data[j] / 255 - R[k]) * pa;
+            G[k] += (plate.data[j + 1] / 255 - G[k]) * pa;
+            B[k] += (plate.data[j + 2] / 255 - B[k]) * pa;
+            continue;
+          }
+        }
+        const ramp = ramps[rampNames[Mfin[k]]];
+        if (!ramp) continue;
+        const t = l * (ramp.length - 1), i0 = Math.min(ramp.length - 2, Math.floor(t)), f = t - i0;
+        const c0 = ramp[i0], c1 = ramp[i0 + 1];
+        R[k] += ((c0[0] + (c1[0] - c0[0]) * f) / 255 - R[k]) * m;
+        G[k] += ((c0[1] + (c1[1] - c0[1]) * f) / 255 - G[k]) * m;
+        B[k] += ((c0[2] + (c1[2] - c0[2]) * f) / 255 - B[k]) * m;
       }
     }
 
