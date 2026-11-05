@@ -1,0 +1,29 @@
+# What is uploaded to Vercel: the code, the templates json, the hero's template files, fonts + store lists.
+node_modules
+out
+legacy
+.git
+.claude
+decisions/preview.json
+decisions/.validate.json
+
+# working files (700 MB of PSDs and bakes): only the hero's files are needed
+poc/backgrounds
+poc/dogs
+poc/metal-bake
+poc/out
+poc/patterns
+poc/templates/*.psd
+poc/templates/*.jpg
+poc/templates/*.png
+poc/templates/Dog*
+poc/*.png
+poc/prompts*
+
+# big caches that are rebuilt on the server
+cache/backgrounds
+cache/patterns
+public
+
+.env*
+.vercel

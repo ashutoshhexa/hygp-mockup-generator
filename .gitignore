@@ -22,3 +22,11 @@ poc/metal-bake/*/try*/
 
 # storefront engraving fonts (list + font files), fetched by src/fonts.js
 cache/
+
+# Vercel build output (scripts/build-vercel.js)
+public/
+.vercel
+
+.vercel
+.env*
+.deploy/

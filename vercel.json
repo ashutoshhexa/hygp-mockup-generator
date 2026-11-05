@@ -1,0 +1,24 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": "node scripts/build-vercel.js",
+  "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/", "destination": "/ui/listing.html" },
+    { "source": "/listing", "destination": "/ui/listing.html" },
+    { "source": "/files/cache/patterns/:file", "destination": "/api" },
+    { "source": "/api/:path*", "destination": "/api" }
+  ],
+  "functions": {
+    "api/index.js": {
+      "memory": 1024,
+      "maxDuration": 30,
+      "includeFiles": "{src/**,templates/**,frames.json,decisions/christmas-gingerbread.json,cache/engraving-fonts/**,cache/shop/**}"
+    }
+  },
+  "headers": [
+    { "source": "/files/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
+    { "source": "/bg/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }] },
+    { "source": "/ui/(.*)", "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }] }
+  ]
+}
