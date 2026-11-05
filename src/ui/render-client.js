@@ -187,12 +187,12 @@
     }
     const id = nextId++;
     // everything except the engraving: when this is unchanged the worker reuses its last stage
-    const stageKey = template.layered && mode !== 'mask' ? JSON.stringify([template.id, baseKey, belowKey, binKey, sorted(plateKeys), patternKey, sorted(patternKeys), bgKey, sorted(plan.finishBySlot), mode, plan.patternScale]) : null;
+    const stageKey = template.layered && mode !== 'mask' ? JSON.stringify([template.id, baseKey, belowKey, binKey, sorted(plateKeys), patternKey, sorted(patternKeys), bgKey, sorted(plan.finishBySlot), mode, plan.patternScale, sorted(plan.patternScaleBySlot)]) : null;
     return new Promise((resolve, reject) => {
       pending.set(id, { resolve, reject });
       worker.postMessage({
         type: 'render', id, template, baseKey, belowKey, binKey, plateKeys, patternKey, patternKeys, bgKey, engravingKeys,
-        finishBySlot: plan.finishBySlot, mode, patternScale: plan.patternScale, stageKey,
+        finishBySlot: plan.finishBySlot, mode, patternScale: plan.patternScale, patternScaleBySlot: plan.patternScaleBySlot, stageKey,
       });
     });
   }

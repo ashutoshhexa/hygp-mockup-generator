@@ -47,6 +47,7 @@ self.onmessage = (event) => {
         engravingBySlot,
         mode: msg.mode,
         patternScale: msg.patternScale,
+        patternScaleBySlot: msg.patternScaleBySlot,
         stageKey: msg.stageKey,
         stageCache: msg.stageKey ? stageCaches.get(msg.template.id) || stageCaches.set(msg.template.id, {}).get(msg.template.id) : null,
       });

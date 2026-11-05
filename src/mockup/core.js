@@ -508,7 +508,7 @@
         if (!pattern) continue;
         const overscan = layer.overscan != null ? layer.overscan : template.strapOverscan || 0;
         const keySides = !!(template.bgKey && template.bgKey.sides);
-        const buf = strapBuffer(layer, s, W, H, pattern.width, pattern.height, patternScale, overscan, keySides);
+        const buf = strapBuffer(layer, s, W, H, pattern.width, pattern.height, (opts.patternScaleBySlot && opts.patternScaleBySlot[layer.slot]) || patternScale, overscan, keySides);
         if (!buf) continue;
         const flip = !!layer.flip;
         const gain = layer.shade == null ? 1 : layer.shade;
@@ -860,7 +860,7 @@
         const pat = patternFor(op.slot);
         if (!pat) continue;
         // tile: pattern height spans the webbing width (x patternScale), repeats along the strip
-        const tile = chh * patternScale;
+        const tile = chh * ((opts.patternScaleBySlot && opts.patternScaleBySlot[op.slot]) || patternScale);
         // pick a mip level from how many output px one content unit covers here
         let acc = 0, cnt = 0;
         for (let y = 0; y < op.uv.h - 1; y += 7) for (let x = 0; x < op.uv.w; x += 7) {

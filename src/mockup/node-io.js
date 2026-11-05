@@ -51,7 +51,7 @@ async function backgroundPng(spec, width, height) {
   return paintPreset(spec.preset, width, height);
 }
 
-async function renderFrame({ templateId, template, scale, background = null, mode = 'final', patternFile, patternFileBySlot, finishBySlot, collarBySlot, patternScale }) {
+async function renderFrame({ templateId, template, scale, background = null, mode = 'final', patternFile, patternFileBySlot, finishBySlot, collarBySlot, patternScale, patternScaleBySlot }) {
   template = template || readTemplate(templateId);
   // layered (PSD) templates are baked at one size
   scale = template.layered ? 1 : scale || template.renderScale || 1;
@@ -96,7 +96,7 @@ async function renderFrame({ templateId, template, scale, background = null, mod
   }
   const bgPng = await backgroundPng(background, W, H);
   const bg = bgPng ? await bufferToRgba(bgPng) : null;
-  const out = core.render({ template, base, below, layerData, metalPlates, pattern, patternBySlot, finishBySlot, engravingBySlot, background: bg, mode, patternScale });
+  const out = core.render({ template, base, below, layerData, metalPlates, pattern, patternBySlot, finishBySlot, engravingBySlot, background: bg, mode, patternScale, patternScaleBySlot });
   return sharp(Buffer.from(out.data.buffer), { raw: { width: out.width, height: out.height, channels: 4 } })
     .removeAlpha()
     .png()

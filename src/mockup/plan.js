@@ -28,6 +28,12 @@
     return { kind: 'preset', preset: listing.backgroundPreset || 'winter-linen' };
   }
 
+  // decision.collarPatternScales = [left, center, right]; empty entries use decision.patternScale
+  function patternScaleForCollar(decision, index, template) {
+    const list = decision.collarPatternScales || [];
+    return list[index] || decision.patternScale || (template && template.patternScale) || 1;
+  }
+
   // decision.collarPatterns = [left, center, right]; empty entries use decision.patternFile
   function patternForCollar(decision, index) {
     const list = decision.collarPatterns || [];
@@ -40,11 +46,13 @@
     const finishBySlot = {};
     const collarBySlot = {};
     const patternFileBySlot = {};
+    const patternScaleBySlot = {};
     for (const [slotId, slot] of Object.entries(template.slots || {})) {
       finishBySlot[slotId] = roles[slot.role] || roles.center;
       if (slot.collar != null) collarBySlot[slotId] = listing.collars[slot.collar];
       // leash and other non-collar slots follow the center collar's pattern
       patternFileBySlot[slotId] = patternForCollar(decision, slot.collar != null ? slot.collar : 1);
+      patternScaleBySlot[slotId] = patternScaleForCollar(decision, slot.collar != null ? slot.collar : 1, template);
     }
     return {
       id: frame.id,
@@ -55,8 +63,9 @@
       patternFileBySlot,
       background: backgroundSpec(frame, listing),
       patternScale: decision.patternScale || template.patternScale || 1,
+      patternScaleBySlot,
     };
   }
 
-  return { FINISHES, FINISH_LABELS, assignFinishes, planFrame, backgroundSpec, patternForCollar };
+  return { FINISHES, FINISH_LABELS, assignFinishes, planFrame, backgroundSpec, patternForCollar, patternScaleForCollar };
 });
