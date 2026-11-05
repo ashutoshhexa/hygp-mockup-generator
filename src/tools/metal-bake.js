@@ -150,6 +150,43 @@ function metalCoverage(template, bin, [X, Y, w, h]) {
   return m;
 }
 
+// The model over-polishes some finishes (silver highlights blow out to pure white). For these,
+// the bright half of the plate's tones is matched to the reference buckle's; shadows stay.
+const TONE_TO_REFERENCE = { silver: true };
+
+async function toneHighlights(rgba, fin) {
+  const L = (r, g, b) => (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  const [x, y, w, h] = REF_BOXES[fin];
+  const { data: r } = await sharp(fromRoot('poc', 'templates', '03-infographic.jpg')).extract({ left: x, top: y, width: w, height: h }).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const ref = [];
+  for (let i = 0; i < r.length; i += 3) {
+    if (Math.max(Math.abs(r[i] - 253), Math.abs(r[i + 1] - 253), Math.abs(r[i + 2] - 253)) > 6) ref.push(L(r[i], r[i + 1], r[i + 2]));
+  }
+  ref.sort((a, b) => a - b);
+  const ours = [];
+  for (let q = 0; q < rgba.length; q += 4) if (rgba[q + 3] === 255) ours.push(L(rgba[q], rgba[q + 1], rgba[q + 2]));
+  ours.sort((a, b) => a - b);
+  const cdf = (l) => { let lo = 0, hi = ours.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (ours[mid] <= l) lo = mid + 1; else hi = mid; } return lo / ours.length; };
+  const qref = (p) => ref[Math.min(ref.length - 1, Math.floor(p * (ref.length - 1)))];
+  // 256-entry curve: below the median unchanged, above it the reference's quantiles
+  const curve = new Float32Array(256);
+  for (let i = 0; i < 256; i++) {
+    const l = i / 255, p = cdf(l);
+    const t = Math.min(1, Math.max(0, (p - 0.4) / 0.2)), wgt = t * t * (3 - 2 * t);
+    curve[i] = l + (qref(p) - l) * wgt;
+  }
+  let bright0 = 0, bright1 = 0, n = 0;
+  for (let q = 0; q < rgba.length; q += 4) {
+    if (!rgba[q + 3]) continue;
+    const l = L(rgba[q], rgba[q + 1], rgba[q + 2]);
+    const nl = curve[Math.round(l * 255)];
+    const k = l > 0.001 ? nl / l : 1;
+    for (let c = 0; c < 3; c++) rgba[q + c] = Math.max(0, Math.min(255, Math.round(rgba[q + c] * k)));
+    if (rgba[q + 3] === 255) { n++; if (l > 0.95) bright0++; if (nl > 0.95) bright1++; }
+  }
+  return `${fin}: highlights toned to reference, near-white share ${(100 * bright0 / n).toFixed(1)}% -> ${(100 * bright1 / n).toFixed(1)}% (reference ${(100 * ref.filter((v) => v > 0.95).length / ref.length).toFixed(1)}%)`;
+}
+
 async function assemble(id) {
   const template = readTemplate(id);
   const bin = fs.readFileSync(fromRoot(template.layered.bin));
@@ -208,6 +245,7 @@ async function assemble(id) {
       for (let c = 0; c < 3; c++) rgba[q * 4 + c] = Math.round(acc[q * 3 + c] / wsum[q]);
       rgba[q * 4 + 3] = Math.round(255 * Math.min(1, wsum[q]));
     }
+    if (TONE_TO_REFERENCE[fin]) report.push(await toneHighlights(rgba, fin));
     const rel = `poc/templates/${id}/metal-${fin}.png`;
     await sharp(rgba, { raw: { width: W, height: H, channels: 4 } }).png().toFile(fromRoot(rel));
     plates[fin] = rel;
