@@ -88,7 +88,6 @@
         if (!firstDone) $('#stage').classList.add('ready');
         firstDone = true;
         $('#dlPng').disabled = false;
-        $('#dlJpg').disabled = false;
       }
     } catch (err) {
       setStatus(err.message, 'err');
@@ -152,27 +151,115 @@
     return String(text || 'listing').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'listing';
   }
 
-  async function download(type) {
-    const btn = type === 'image/png' ? $('#dlPng') : $('#dlJpg');
+  /*
+   * Square version without distorting anything: the 4:3 photo is placed untouched in the middle
+   * of a square and the backdrop is continued above and below it. Each added row is the edge of
+   * the photo (averaged over a few rows), blurred sideways a little more the further it is from
+   * the photo, so the backdrop fades on smoothly with no seam, stretch or repeated detail.
+   * Works at any size (used for the 3000 px download and the dialog thumbnail).
+   */
+  function squareCanvas(src) {
+    const W = src.width, H = src.height;
+    if (W <= H) return src; // already square or portrait: nothing to add
+    const S = W, top = Math.floor((S - H) / 2), bottom = S - H - top;
+    const out = document.createElement('canvas');
+    out.width = S; out.height = S;
+    const ctx = out.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(src, 0, top);
+    const img = ctx.getImageData(0, 0, S, S);
+    const d = img.data;
+    const band = Math.max(2, Math.round(H * 0.01));
+    const edgeProfile = (y0) => {
+      const row = new Float64Array(W * 3);
+      for (let y = y0; y < y0 + band; y++) for (let x = 0; x < W; x++) {
+        const j = ((y + top) * S + x) * 4;
+        row[x * 3] += d[j]; row[x * 3 + 1] += d[j + 1]; row[x * 3 + 2] += d[j + 2];
+      }
+      for (let i = 0; i < row.length; i++) row[i] /= band;
+      // prefix sums per channel for quick sideways blurs
+      const pre = new Float64Array((W + 1) * 3);
+      for (let x = 0; x < W; x++) for (let c = 0; c < 3; c++) pre[(x + 1) * 3 + c] = pre[x * 3 + c] + row[x * 3 + c];
+      return pre;
+    };
+    const fill = (pre, count, rowAt) => {
+      for (let k = 1; k <= count; k++) {
+        const r = Math.min(Math.floor(W / 3), Math.round(k * 0.6));
+        const y = rowAt(k);
+        for (let x = 0; x < W; x++) {
+          const a = Math.max(0, x - r), b = Math.min(W, x + r + 1), n = b - a, j = (y * S + x) * 4;
+          for (let c = 0; c < 3; c++) d[j + c] = (pre[b * 3 + c] - pre[a * 3 + c]) / n + (Math.random() - 0.5); // +-0.5 dither: no banding
+          d[j + 3] = 255;
+        }
+      }
+    };
+    fill(edgeProfile(0), top, (k) => top - k);
+    fill(edgeProfile(H - band), bottom, (k) => top + H - 1 + k);
+    ctx.putImageData(img, 0, 0);
+    return out;
+  }
+
+  const DL_PREFS = 'listing-download';
+  function loadPrefs() {
+    try { return JSON.parse(localStorage.getItem(DL_PREFS)) || {}; } catch { return {}; }
+  }
+  function savePrefs(p) {
+    try { localStorage.setItem(DL_PREFS, JSON.stringify(p)); } catch { /* private mode: fine */ }
+  }
+
+  async function openDownload() {
+    const dlg = $('#dlDialog');
+    const prefs = loadPrefs();
+    const form = dlg.querySelector('form');
+    if (prefs.shape) form.elements.shape.value = prefs.shape;
+    if (prefs.type) form.elements.type.value = prefs.type;
+    await idle(); // thumbnails and file come from the finished photo
+    const photo = $('#photo');
+    const small = document.createElement('canvas');
+    small.width = 240; small.height = Math.round((240 * photo.height) / photo.width);
+    small.getContext('2d').drawImage(photo, 0, 0, small.width, small.height);
+    $('#thumbOriginal').getContext('2d').drawImage(small, 0, 0, 240, 180);
+    $('#thumbSquare').getContext('2d').drawImage(squareCanvas(small), 0, 0, 240, 240);
+    dlg.returnValue = '';
+    dlg.showModal();
+  }
+
+  async function download(shape, type) {
+    const btn = $('#dlPng');
     const label = btn.innerHTML;
     btn.disabled = true;
     btn.textContent = inFlight ? 'Finishing…' : 'Preparing…';
     try {
       await idle(); // never download a frame that is still being updated
-      const blob = await new Promise((resolve, reject) => $('#photo').toBlob((b) => (b ? resolve(b) : reject(new Error('Could not encode the photo'))), type, 0.95));
+      const photo = $('#photo');
+      const canvas = shape === 'square' ? squareCanvas(photo) : photo;
+      const blob = await new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not encode the photo'))), type, 0.95));
       const ext = type === 'image/png' ? 'png' : 'jpg';
-      const a = el('a', { href: URL.createObjectURL(blob), download: `${slug(state.decision.patternLabel)}-main-photo.${ext}` });
+      const a = el('a', { href: URL.createObjectURL(blob), download: `${slug(state.decision.patternLabel)}-main-photo${shape === 'square' ? '-square' : ''}.${ext}` });
       document.body.append(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-      setStatus(`Downloaded ${ext.toUpperCase()} · ${(blob.size / 1048576).toFixed(1)} MB`, 'ok');
+      setStatus(`Downloaded ${canvas.width} × ${canvas.height} ${ext.toUpperCase()} · ${(blob.size / 1048576).toFixed(1)} MB`, 'ok');
     } catch (err) {
       setStatus(err.message, 'err');
     } finally {
       btn.innerHTML = label;
       btn.disabled = false;
     }
+  }
+
+  function wireDownload() {
+    const dlg = $('#dlDialog');
+    $('#dlPng').addEventListener('click', openDownload);
+    dlg.addEventListener('close', () => {
+      if (dlg.returnValue !== 'download') return;
+      const form = dlg.querySelector('form');
+      const prefs = { shape: form.elements.shape.value, type: form.elements.type.value };
+      savePrefs(prefs);
+      download(prefs.shape, prefs.type);
+    });
+    // click on the dimmed backdrop closes
+    dlg.addEventListener('click', (e) => { if (e.target === dlg) dlg.close('cancel'); });
   }
 
   /* ---------------- 1. pattern ---------------- */
@@ -525,7 +612,7 @@
       el('span', { class: 'fact' }, el('i', { class: `metal ${d.listing.centerColor}` }), `${FIN_LABEL[d.listing.centerColor]} featured`),
       el('span', { class: 'fact' }, pat),
       el('span', { class: 'fact' }, bgLabel()),
-      el('span', { class: 'fact dim' }, '3000 × 2250 px'));
+      el('span', { class: 'fact dim' }, 'Downloads square or original'));
   }
 
   function debounce(fn, ms) {
@@ -563,8 +650,7 @@
       renderNames();
       renderBg();
       updateSummaries();
-      $('#dlPng').addEventListener('click', () => download('image/png'));
-      $('#dlJpg').addEventListener('click', () => download('image/jpeg'));
+      wireDownload();
       render();
       loadCollections();
     } catch (err) {

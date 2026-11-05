@@ -62,7 +62,6 @@
       <div class="dl-bar">
         <div class="facts" id="facts"></div>
         <div class="download">
-          <button id="dlJpg" class="btn ghost" disabled title="Smaller file (JPG, high quality)">JPG</button>
           <button id="dlPng" class="btn primary" disabled>
             <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
             Download photo
@@ -98,6 +97,47 @@
       </details>
     </aside>
   </main>
+
+  <dialog id="dlDialog" class="dl-dialog" aria-labelledby="dlTitle">
+    <form method="dialog" class="dl-form">
+      <div class="dl-head">
+        <h2 id="dlTitle">Download photo</h2>
+        <button class="close" value="cancel" aria-label="Close">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="m5 5 10 10M15 5 5 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </button>
+      </div>
+      <p class="help">Choose the shape. The photo itself is never stretched: the square version adds more of the same backdrop above and below.</p>
+
+      <div class="shape-opts" role="radiogroup" aria-label="Shape">
+        <label class="shape">
+          <input type="radio" name="shape" value="square" checked />
+          <span class="thumb square"><canvas id="thumbSquare" width="240" height="240"></canvas></span>
+          <span class="shape-text"><strong>Square <em>Recommended</em></strong><small>3000 × 3000 px · best for Etsy listings</small></span>
+        </label>
+        <label class="shape">
+          <input type="radio" name="shape" value="original" />
+          <span class="thumb"><canvas id="thumbOriginal" width="240" height="180"></canvas></span>
+          <span class="shape-text"><strong>Original</strong><small>3000 × 2250 px · as shown in the preview</small></span>
+        </label>
+      </div>
+
+      <div class="field">
+        <span>File type</span>
+        <div class="seg type-seg" role="radiogroup" aria-label="File type">
+          <label><input type="radio" name="type" value="image/png" checked /><span>PNG <small>best quality</small></span></label>
+          <label><input type="radio" name="type" value="image/jpeg" /><span>JPG <small>smaller file</small></span></label>
+        </div>
+      </div>
+
+      <div class="dl-actions">
+        <button class="btn" value="cancel">Cancel</button>
+        <button class="btn primary" id="dlGo" value="download">
+          <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v9m0 0-3.5-3.5M10 12l3.5-3.5M4 15.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Download
+        </button>
+      </div>
+    </form>
+  </dialog>
 
   <script src="/mockup/core.js"></script>
   <script src="/mockup/plan.js"></script>
