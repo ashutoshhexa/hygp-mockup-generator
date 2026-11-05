@@ -370,7 +370,13 @@ async function main() {
     },
     layers: [],
   };
-  fs.writeFileSync(fromRoot('templates', `${id}.json`), JSON.stringify(template, null, 1) + '\n');
+  // keep hand-tuned / fitted settings across re-imports (see src/tools/fit-finishes.js)
+  const outFile = fromRoot('templates', `${id}.json`);
+  if (fs.existsSync(outFile)) {
+    const prev = JSON.parse(fs.readFileSync(outFile, 'utf8')).layered || {};
+    for (const k of ['finishRamps', 'finishRampsSource', 'threadColor']) if (prev[k]) template.layered[k] = prev[k];
+  }
+  fs.writeFileSync(outFile, JSON.stringify(template, null, 1) + '\n');
   log(`wrote templates/${id}.json, ${dir} (layers.bin ${(offset / 1e6).toFixed(1)} MB)`);
   if (skipped.length) log('left out:\n  ' + skipped.join('\n  '));
 }
