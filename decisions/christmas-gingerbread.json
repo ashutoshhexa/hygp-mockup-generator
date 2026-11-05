@@ -4,9 +4,21 @@
   "listing": {
     "centerColor": "rosegold",
     "collars": [
-      { "name": "Cookie", "phone": "555-0148", "font": "Georgia" },
-      { "name": "Frosty", "phone": "555-0173", "font": "Arial" },
-      { "name": "Snowball", "phone": "555-0190", "font": "Calibri" }
+      {
+        "name": "Cookie",
+        "phone": "419-555-0148",
+        "font": "DM Serif"
+      },
+      {
+        "name": "Frosty",
+        "phone": "419-555-0173",
+        "font": "Pacifico"
+      },
+      {
+        "name": "Snowball",
+        "phone": "419-555-0190",
+        "font": "Roboto"
+      }
     ],
     "backgroundPrompt": "Empty pale linen surface in soft winter window light. No collar, no leash, no dog, no buckle, no text, no product."
   }

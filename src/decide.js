@@ -11,8 +11,9 @@ const fs = require('fs');
  * the same `listing` object, and may add `backgroundFile` pointing at an
  * empty scene (no product). It must not return product pixels.
  */
+const { fontNames } = require('./fonts');
+
 const FINISHES = ['gold', 'rosegold', 'silver'];
-const FONTS = ['Arial', 'Georgia', 'Calibri', 'Segoe UI'];
 
 const ALLOWED_LISTING_KEYS = new Set([
   'centerColor',
@@ -48,8 +49,13 @@ function decideListing(decisionFile) {
     if (!collar.name || !collar.phone) {
       throw new Error(`Collar ${index + 1} needs a name and a phone.`);
     }
-    if (!FONTS.includes(collar.font)) {
-      throw new Error(`Collar ${index + 1} font "${collar.font}" is not an engraving font.`);
+    // storefront buckle fonts (src/fonts.js); skipped only before the list was ever fetched
+    const fonts = fontNames();
+    for (const key of ['font', 'phoneFont']) {
+      if (key === 'phoneFont' && !collar.phoneFont) continue;
+      if (fonts.length && !fonts.includes(collar[key])) {
+        throw new Error(`Collar ${index + 1} ${key} "${collar[key]}" is not a buckle engraving font (${fonts.join(', ')}).`);
+      }
     }
   });
   if (!listing.backgroundPrompt || !String(listing.backgroundPrompt).trim()) {
@@ -76,4 +82,4 @@ function sideFinishes(centerColor, sideOrder) {
   return { left: rest[0], center: centerColor, right: rest[1], leash: centerColor };
 }
 
-module.exports = { decideListing, sideFinishes, FINISHES, FONTS };
+module.exports = { decideListing, sideFinishes, FINISHES };

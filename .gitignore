@@ -19,3 +19,6 @@ poc/metal-bake/*/in/
 poc/metal-bake/*/padded/
 poc/metal-bake/*/rejected-*/
 poc/metal-bake/*/try*/
+
+# storefront engraving fonts (list + font files), fetched by src/fonts.js
+cache/

@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * Node side of the mockup core: decode/encode with sharp, engraving with resvg.
+ * Node side of the mockup core: decode/encode with sharp, engraving (font outlines) with resvg.
  * The browser UI runs the same core.js and plan.js with canvas instead.
  */
 const fs = require('fs');
@@ -85,8 +85,9 @@ async function renderFrame({ templateId, template, scale, background = null, mod
   for (const [slot, file] of Object.entries(patternFileBySlot || {})) if (file) patternBySlot[slot] = await loadPattern(file);
   const engravingBySlot = {};
   for (const [slot, collar] of Object.entries(collarBySlot || {})) {
-    if (collar && collar.name) {
-      engravingBySlot[slot] = await bufferToRgba(rasterizeEngraving({ name: collar.name, phone: collar.phone, font: collar.font }));
+    if (collar && (collar.name || collar.phone)) {
+      const png = await rasterizeEngraving({ name: collar.name, phone: collar.phone, font: collar.font, phoneFont: collar.phoneFont });
+      if (png) engravingBySlot[slot] = await bufferToRgba(png);
     }
   }
   const bgPng = await backgroundPng(background, W, H);

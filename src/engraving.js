@@ -1,15 +1,18 @@
 'use strict';
 
-const fs = require('fs');
-const path = require('path');
-
 /**
  * Buckle engraving SVG.
- * Fit math is the same as
- * B2B-portal-lambda/src/order/utils/engraving-svg.util.ts
- * so a name and phone land in the buckle the way production already draws them.
- * The image model does not invent the letters.
+ * Layout follows B2B-portal-lambda/src/order/utils/engraving-svg.util.ts
+ * (buckle size viewBox, line 1 = 44% of the height, line 2 = 26%, 88% max width,
+ * 86% max block height), so a name and phone land on the buckle the way production
+ * draws them. Two differences:
+ *   - text is drawn as glyph outlines from the storefront font file (fontkit),
+ *     so the browser preview and the export are the same and need no font loading;
+ *   - widths are measured from the real glyphs instead of estimated, so wide fonts
+ *     (Rubik, Unbounded) shrink to fit instead of running off the face.
+ * The image model never draws the letters.
  */
+const { loadFont, PHONE_FONT } = require('./fonts');
 
 const BUCKLE_DIMENSIONS = {
   XS: { widthMm: 14.0, heightMm: 11.0, viewBoxW: 2800, viewBoxH: 2200 },
@@ -21,155 +24,100 @@ const BUCKLE_DIMENSIONS = {
   XXL: { widthMm: 20.0, heightMm: 21.0, viewBoxW: 4000, viewBoxH: 4200 },
 };
 
-const FONT_FILES = {
-  Arial: 'arialbd.ttf',
-  Georgia: 'georgiab.ttf',
-  Calibri: 'calibrib.ttf',
-  'Segoe UI': 'segoeuib.ttf',
-};
-
-function escapeXml(unsafe) {
-  if (!unsafe) return '';
-  return String(unsafe)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&apos;');
+/** 10 US digits -> 419-555-0148; anything else is engraved as typed. */
+function formatUsPhone(text) {
+  const raw = String(text || '').trim();
+  let d = raw.replace(/\D/g, '');
+  if (d.length === 11 && d[0] === '1') d = d.slice(1);
+  return d.length === 10 ? `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}` : raw;
 }
 
-function estimateTextUnits(text) {
-  let units = 0;
-  for (let i = 0; i < text.length; i++) {
-    const char = text[i];
-    if (/[MW]/.test(char)) units += 1.05;
-    else if (/[mw]/.test(char)) units += 0.8;
-    else if (/[CDGNOQU]/.test(char)) units += 0.85;
-    else if (/[ABEFHKPRSTVXYZ]/.test(char)) units += 0.78;
-    else if (/[ijlrtfI]/.test(char)) units += 0.38;
-    else if (/[a-z]/.test(char)) units += 0.54;
-    else units += 0.56;
-  }
-  return units;
+/** A fictional-looking number in the client's format: 419-555-XXXX. */
+function randomPhone() {
+  return `419-555-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
 }
 
-function fontFile(fontName) {
-  const file = FONT_FILES[fontName] || FONT_FILES.Arial;
-  const full = path.join(process.env.WINDIR || 'C:\\Windows', 'Fonts', file);
-  if (!fs.existsSync(full)) {
-    const fallback = path.join(process.env.WINDIR || 'C:\\Windows', 'Fonts', 'arialbd.ttf');
-    if (!fs.existsSync(fallback)) {
-      throw new Error(`Engraving font file not found for ${fontName}.`);
-    }
-    return fallback;
-  }
-  return full;
+// ink box of a laid-out line, in font units
+function inkBox(run) {
+  const b = run.bbox;
+  if (!b || !isFinite(b.minX) || b.maxX <= b.minX) return { minX: 0, maxX: run.advanceWidth, minY: 0, maxY: 0 };
+  return b;
 }
 
-function generateEngravingSvg({ line1, line2, fontName, fontUrl, sizeName = 'MN' }) {
-  const defaultFont = (fontName || 'Arial').trim();
-  const rawLines = [
-    { text: (line1 || '').trim(), font: defaultFont, fontUrl: fontUrl || null, lineIndex: 1 },
-    { text: (line2 || '').trim(), font: defaultFont, fontUrl: fontUrl || null, lineIndex: 2 },
-  ].filter((line) => line.text.length > 0);
-  if (rawLines.length === 0) return null;
-
+/**
+ * lines: [{ text, font }] where font is a fontkit font. Returns an SVG string of paths.
+ */
+function engravingSvg(lines, sizeName = 'MN') {
+  const rawLines = lines.map((l) => ({ ...l, text: String(l.text || '').trim() })).filter((l) => l.text);
+  if (!rawLines.length) return null;
   const dim = BUCKLE_DIMENSIONS[sizeName] || BUCKLE_DIMENSIONS.MN;
-  const numLines = rawLines.length;
-  const H = dim.viewBoxH;
-  const W = dim.viewBoxW;
+  const W = dim.viewBoxW, H = dim.viewBoxH;
   const maxW = Math.round(W * 0.88);
+  const numLines = rawLines.length;
+  const baseFs1 = Math.round(H * (numLines === 1 ? 0.52 : 0.44));
+  const baseFs2 = Math.round(H * 0.26);
 
-  let baseFs1 = 0;
-  let baseFsSecondary = 0;
-  if (numLines === 1) {
-    baseFs1 = Math.round(H * 0.52);
-  } else {
-    baseFs1 = Math.round(H * 0.44);
-    baseFsSecondary = Math.round(H * 0.26);
-  }
-
-  const getLineHeight = (fs) => Math.round(fs * 1.0);
-  const gap = numLines > 1 ? Math.round(baseFsSecondary * 0.12) : 0;
-
-  const lineFontSizes = rawLines.map((item, idx) => {
-    const targetFs = idx === 0 ? baseFs1 : baseFsSecondary;
-    const textUnits = item.text.length <= 3 ? item.text.length * 0.56 : estimateTextUnits(item.text);
-    const estWidth = textUnits * targetFs;
-    if (estWidth > maxW) return Math.max(Math.round(maxW / textUnits), 14);
-    return targetFs;
+  const laid = rawLines.map((l, idx) => {
+    const run = l.font.layout(l.text);
+    const box = inkBox(run);
+    const upm = l.font.unitsPerEm;
+    let fs = idx === 0 ? baseFs1 : baseFs2;
+    const inkW = ((box.maxX - box.minX) / upm) * fs;
+    if (inkW > maxW) fs = Math.max(Math.floor((fs * maxW) / inkW), 14);
+    return { ...l, run, box, upm, fs };
   });
 
-  const lineHeights = lineFontSizes.map((fs) => getLineHeight(fs));
-  let totalBlockH = lineHeights.reduce((sum, lh) => sum + lh, 0) + (numLines - 1) * gap;
-  const maxAllowedH = Math.round(H * 0.86);
-  let effectiveGap = gap;
-  if (totalBlockH > maxAllowedH) {
-    const scale = maxAllowedH / totalBlockH;
-    for (let i = 0; i < lineFontSizes.length; i++) {
-      lineFontSizes[i] = Math.max(Math.round(lineFontSizes[i] * scale), 14);
-      lineHeights[i] = getLineHeight(lineFontSizes[i]);
-    }
-    effectiveGap = Math.round(gap * scale);
-    totalBlockH = lineHeights.reduce((sum, lh) => sum + lh, 0) + (numLines - 1) * effectiveGap;
+  // production line box: line height = font size, gap = 12% of the second line's size
+  const gap0 = numLines > 1 ? Math.round(laid[1].fs * 0.12) : 0;
+  let total = laid.reduce((s, l) => s + l.fs, 0) + (numLines - 1) * gap0;
+  const maxH = Math.round(H * 0.86);
+  let gap = gap0;
+  if (total > maxH) {
+    const k = maxH / total;
+    laid.forEach((l) => { l.fs = Math.max(Math.round(l.fs * k), 14); });
+    gap = Math.round(gap0 * k);
+    total = laid.reduce((s, l) => s + l.fs, 0) + (numLines - 1) * gap;
   }
 
-  let currentY = Math.round((H - totalBlockH) / 2);
-  const centerX = Math.round(W / 2);
-
-  const fontFaces = [];
-  if (fontUrl) {
-    fontFaces.push(`    @font-face {
-      font-family: "${escapeXml(defaultFont)}";
-      src: url("${escapeXml(fontUrl)}") format("truetype");
-      font-weight: 700;
-      font-style: normal;
-    }`);
-  }
-
-  const textElements = rawLines.map((item, idx) => {
-    const fs = lineFontSizes[idx];
-    const lh = lineHeights[idx];
-    const centerY = Math.round(currentY + lh / 2);
-    currentY += lh + effectiveGap;
-    return `  <text class="engraving-text" font-family="${escapeXml(item.font)}, Arial, sans-serif" x="${centerX}" y="${centerY}" font-size="${fs}">${escapeXml(item.text)}</text>`;
+  let y = (H - total) / 2;
+  const paths = laid.map((l) => {
+    const s = l.fs / l.upm;
+    const cy = y + l.fs / 2;
+    y += l.fs + gap;
+    // centre the ink box on the line's centre (fonts disagree on cap heights)
+    const ox = W / 2 - ((l.box.minX + l.box.maxX) / 2) * s;
+    const oy = cy + ((l.box.minY + l.box.maxY) / 2) * s;
+    let pen = 0;
+    const parts = [];
+    l.run.glyphs.forEach((g, i) => {
+      const p = l.run.positions[i];
+      const gx = ox + (pen + p.xOffset) * s, gy = oy - p.yOffset * s;
+      parts.push(g.path.scale(s, -s).translate(gx, gy).toSVG());
+      pen += p.xAdvance;
+    });
+    return `  <path d="${parts.join(' ')}"/>`;
   });
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
-  <defs>
-    <style>
-${fontFaces.join('\n')}
-    .engraving-text {
-      font-weight: 700;
-      text-anchor: middle;
-      dominant-baseline: central;
-      fill: #1a1a1a;
-    }
-    </style>
-  </defs>
-${textElements.join('\n')}
+  <g fill="#000" fill-rule="nonzero">
+${paths.join('\n')}
+  </g>
 </svg>`;
 }
 
-function rasterizeEngraving({ name, phone, font }) {
+/** Name on line 1 in the chosen font, phone on line 2 (default: Roboto Condensed Bold). */
+async function generateEngravingSvg({ name, phone, font, phoneFont, sizeName = 'MN' }) {
+  const [nameFont, numFont] = await Promise.all([loadFont(font), loadFont(phoneFont || PHONE_FONT)]);
+  return engravingSvg([{ text: name, font: nameFont }, { text: formatUsPhone(phone), font: numFont }], sizeName);
+}
+
+/** Black-on-transparent PNG, drawn large; the renderer mipmaps it down onto the buckle. */
+async function rasterizeEngraving({ name, phone, font, phoneFont, width = 1400 }) {
   const { Resvg } = require('@resvg/resvg-js');
-  const file = fontFile(font);
-  const svg = generateEngravingSvg({
-    line1: name,
-    line2: phone,
-    fontName: font,
-    fontUrl: null,
-    sizeName: 'MN',
-  });
-  const resvg = new Resvg(svg, {
-    fitTo: { mode: 'width', value: 800 },
-    font: {
-      fontFiles: [file],
-      loadSystemFonts: false,
-      defaultFontFamily: font,
-    },
-  });
+  const svg = await generateEngravingSvg({ name, phone, font, phoneFont });
+  if (!svg) return null;
+  const resvg = new Resvg(svg, { fitTo: { mode: 'width', value: width }, font: { loadSystemFonts: false } });
   return Buffer.from(resvg.render().asPng());
 }
 
-module.exports = { generateEngravingSvg, rasterizeEngraving, fontFile };
+module.exports = { generateEngravingSvg, rasterizeEngraving, engravingSvg, formatUsPhone, randomPhone, BUCKLE_DIMENSIONS };
