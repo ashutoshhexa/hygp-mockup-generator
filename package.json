@@ -3,8 +3,8 @@
   "private": true,
   "description": "Etsy listing mockups: a fixed template photo, the real pattern file mapped onto it in code, and a model that only returns JSON.",
   "scripts": {
-    "studio": "node src/server.js",
-    "preview": "node src/server.js",
+    "studio": "node src/studio.js",
+    "preview": "node src/studio.js",
     "mockup": "node src/run.js",
     "plates:bg": "node src/generate-plates.js --kind backgrounds",
     "plates:dogs": "node src/generate-plates.js --kind dogs"

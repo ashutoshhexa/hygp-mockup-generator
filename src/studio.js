@@ -21,7 +21,7 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 
-const { fromRoot } = require('./paths');
+const { fromRoot, ON_VERCEL } = require('./paths');
 const { FINISHES, decideListing } = require('./decide');
 const { rasterizeEngraving, randomPhone } = require('./engraving');
 const { fontList, warmFonts, resolveFontName, PHONE_FONT, DEFAULT_FONT } = require('./fonts');
@@ -30,6 +30,9 @@ const { listPresets } = require('./background');
 const { renderListing, readTemplate, readJson, backgroundPng } = require('./mockup/node-io');
 
 const PORT = Number(process.env.PORT) || 4173;
+// Live site (Vercel): the bundle is read-only, so everything that writes is switched off.
+// Rendering happens in the visitor's browser; the server only serves data and lettering.
+const READ_ONLY = ON_VERCEL;
 const WORKING_DECISION = fromRoot('decisions', 'preview.json');
 const DEFAULT_DECISION = fromRoot('decisions', 'christmas-gingerbread.json');
 
@@ -59,6 +62,7 @@ function slug(text) {
 
 function listPatterns() {
   const dir = fromRoot('poc', 'patterns');
+  if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir)
     .filter((name) => /\.(png|jpe?g|webp)$/i.test(name) && !NOT_PATTERNS.has(name))
     .map((name) => ({ file: `poc/patterns/${name}`, label: PATTERN_LABELS[name] || name.replace(/\.[^.]+$/, '') }));
@@ -95,6 +99,20 @@ function currentDecision() {
   // a background file that was removed from the picker falls back to the default preset
   const l = decision.listing || {};
   if (l.backgroundFile && !fs.existsSync(fromRoot(l.backgroundFile))) delete l.backgroundFile;
+  return decision;
+}
+
+// Live site: the default design must use a store pattern (local poc/patterns are not deployed).
+async function liveDecision() {
+  const decision = currentDecision();
+  const isStore = (f) => f && f.startsWith('cache/patterns/') && f.endsWith('.png');
+  if (!READ_ONLY || (isStore(decision.patternFile) && (decision.collarPatterns || []).every((f) => !f || isStore(f)))) return decision;
+  const collections = await catalog.listCollections();
+  const def = collections.find((c) => c.isDefault) || collections[0];
+  const list = def ? await catalog.listPatterns(def.id) : [];
+  const pick = list.find((p) => /bows.*pinksketch/i.test(p.label)) || list[0];
+  if (pick) { decision.patternFile = pick.file; decision.patternLabel = pick.label; }
+  delete decision.collarPatterns;
   return decision;
 }
 
@@ -148,10 +166,20 @@ function validateDecision(decision) {
 
 const engravingCache = new Map();
 
-const server = http.createServer(async (req, res) => {
+// fonts and the storefront lists must be loaded once per process before the first answer
+let readyPromise = null;
+const ready = () => readyPromise || (readyPromise = warmFonts().catch((err) => console.warn(`Engraving fonts unavailable: ${err.message}`)));
+
+async function handle(req, res) {
   const url = new URL(req.url, `http://127.0.0.1:${PORT}`);
   const p = url.pathname;
   try {
+    if (READ_ONLY) {
+      await ready();
+      const writes = (req.method === 'POST' && (p === '/api/export' || p === '/api/backgrounds' || p.startsWith('/api/templates/')));
+      if (writes) return sendJson(res, 403, { error: 'This is the live site: saving is turned off here.' });
+      if (req.method === 'POST' && p === '/api/decision') return sendJson(res, 200, { ok: true });
+    }
     if (req.method === 'GET' && (p === '/' || p === '/index.html')) return sendFile(res, path.join(__dirname, 'ui', 'index.html'));
     if (req.method === 'GET' && (p === '/listing' || p === '/listing/')) return sendFile(res, path.join(__dirname, 'ui', 'listing.html'));
     if (req.method === 'GET' && p.startsWith('/ui/')) {
@@ -185,7 +213,7 @@ const server = http.createServer(async (req, res) => {
         patterns: listPatterns(),
         templates: listTemplates(),
         frames: readJson('frames.json'),
-        decision: currentDecision(),
+        decision: await liveDecision(),
         finishes: FINISHES,
         fonts: fontList().map((f) => ({ name: f.name, preview: f.preview })),
         phoneFont: PHONE_FONT,
@@ -229,6 +257,11 @@ const server = http.createServer(async (req, res) => {
       const w = Math.min(4096, Number(url.searchParams.get('w')) || 1024);
       const h = Math.min(4096, Number(url.searchParams.get('h')) || 1024);
       const preset = url.searchParams.get('preset') || 'winter-linen';
+      // live site: the main photo's plates are painted at build time and served as static files
+      if (READ_ONLY && w === 3000 && h === 2250 && /^[a-z0-9-]+$/.test(preset)) {
+        res.writeHead(302, { location: `/bg/${preset}.jpg`, 'cache-control': 'public, max-age=86400' });
+        return res.end();
+      }
       const png = await backgroundPng({ kind: 'preset', preset }, w, h);
       res.writeHead(200, { 'content-type': 'image/png', 'cache-control': 'max-age=3600' });
       return res.end(png);
@@ -275,10 +308,14 @@ const server = http.createServer(async (req, res) => {
   } catch (err) {
     sendJson(res, 400, { error: err.message || String(err) });
   }
-});
+}
+
+const server = http.createServer(handle);
+
+module.exports = handle; // api/index.js (Vercel) calls this
 
 // storefront engraving fonts are fetched (and cached) before the Studio opens
-warmFonts()
+if (require.main === module) warmFonts()
   .then((fonts) => console.log(`Engraving fonts: ${fonts.map((f) => f.name).join(', ')}`))
   .catch((err) => console.warn(`Engraving fonts unavailable: ${err.message}`))
   .finally(() => server.listen(PORT, '127.0.0.1', () => {

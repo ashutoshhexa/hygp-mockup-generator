@@ -11,7 +11,7 @@
  */
 const fs = require('fs');
 const path = require('path');
-const { fromRoot } = require('./paths');
+const { cachePath } = require('./paths');
 
 // group: how the Studio groups the swatches
 const PRESETS = {
@@ -80,7 +80,7 @@ async function paintPreset(name, width, height) {
   const sharp = require('sharp');
   const id = PRESETS[name] ? name : DEFAULT_PRESET;
   const colors = PRESETS[id];
-  const file = fromRoot('cache', 'backgrounds', `${id}-${width}x${height}-${hashColors(colors)}.png`);
+  const file = cachePath('backgrounds', `${id}-${width}x${height}-${hashColors(colors)}.png`);
   if (fs.existsSync(file)) return fs.readFileSync(file);
   const raw = await sharp(Buffer.from(presetSvg(width, height, colors))).removeAlpha().raw().toBuffer();
   addGrain(raw, colors.grain || 0);

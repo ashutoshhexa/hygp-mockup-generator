@@ -10,11 +10,11 @@
 const fs = require('fs');
 const path = require('path');
 
-const { fromRoot } = require('./paths');
+const { cachePath } = require('./paths');
 
 const API = 'https://d24u4mowe6x0rg.cloudfront.net/api/shopify-collection';
-const CACHE = fromRoot('cache', 'shop');
-const PATTERN_DIR = fromRoot('cache', 'patterns');
+const CACHE = cachePath('shop');
+const PATTERN_DIR = cachePath('patterns');
 const MAX_AGE_MS = 6 * 60 * 60 * 1000;
 const PATTERN_FILE = /^cache\/patterns\/(\d+)\.png$/;
 

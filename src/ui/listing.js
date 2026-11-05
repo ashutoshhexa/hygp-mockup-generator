@@ -428,7 +428,7 @@
   function renderPattern() {
     const select = el('select', { 'aria-label': 'Collection', onchange: (e) => selectCollection(e.target.value) },
       state.collections.map((c) => el('option', { value: c.id, selected: c.id === state.collection }, c.title)),
-      el('option', { value: 'local', selected: state.collection === 'local' }, 'Local files'));
+      state.localPatterns.length ? el('option', { value: 'local', selected: state.collection === 'local' }, 'Local files') : null);
     const search = el('div', { class: 'search' }, icon(ICONS.search), el('input', {
       type: 'search', placeholder: 'Search patterns', value: state.search, 'aria-label': 'Search patterns',
       oninput: (e) => { state.search = e.target.value; renderPatternGrid(); },

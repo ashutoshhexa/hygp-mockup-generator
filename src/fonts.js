@@ -10,10 +10,10 @@ const fs = require('fs');
 const path = require('path');
 const fontkit = require('fontkit');
 
-const { fromRoot } = require('./paths');
+const { cachePath } = require('./paths');
 
 const API = 'https://d24u4mowe6x0rg.cloudfront.net/api/engraving-fonts';
-const CACHE_DIR = fromRoot('cache', 'engraving-fonts');
+const CACHE_DIR = cachePath('engraving-fonts');
 const LIST_FILE = path.join(CACHE_DIR, 'list.json');
 const LIST_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 
