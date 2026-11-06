@@ -99,6 +99,9 @@ function currentDecision() {
   // a background file that was removed from the picker falls back to the default preset
   const l = decision.listing || {};
   if (l.backgroundFile && !fs.existsSync(fromRoot(l.backgroundFile))) delete l.backgroundFile;
+  // store patterns saved as the raw tile now use the store's print framing
+  if (decision.patternFile) decision.patternFile = catalog.framedFile(decision.patternFile);
+  if (Array.isArray(decision.collarPatterns)) decision.collarPatterns = decision.collarPatterns.map((f) => f && catalog.framedFile(f));
   return decision;
 }
 
