@@ -18,8 +18,9 @@
         <span>Listing photo studio</span>
       </div>
     </div>
-    <span id="status" class="status" role="status" aria-live="polite"></span>
   </header>
+
+  <span id="status" class="status" role="status" aria-live="polite"></span>
 
   <main class="layout">
     <section class="preview" aria-label="Main photo preview">
@@ -48,6 +49,13 @@
               <span class="knob" aria-hidden="true">
                 <svg viewBox="0 0 20 20"><path d="M7.5 6 3.5 10l4 4M12.5 6l4 4-4 4" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
               </span>
+            </div>
+          </div>
+          <div class="fail" id="fail" hidden>
+            <div class="fail-card">
+              <strong>The photo didn't finish loading</strong>
+              <p>This usually happens on a slow connection. Nothing was lost.</p>
+              <button type="button" class="btn primary" id="retry">Try again</button>
             </div>
           </div>
           <div class="loader" id="busy">

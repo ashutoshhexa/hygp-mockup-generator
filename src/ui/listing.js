@@ -76,7 +76,7 @@
 
   async function render() {
     inFlight++;
-    setBusy(true, firstDone ? 'Updating photo…' : 'Loading photo…');
+    setBusy(true, firstDone ? 'Updating photo…' : 'Loading photo… the first time takes a moment');
     try {
       const plan = MockupPlan.planFrame(state.frame, state.template, state.decision, state.sideOrder);
       const r = await RenderClient.renderPlan(plan, state.template, state.decision.patternFile, { mode: 'final' });
@@ -89,9 +89,12 @@
         firstDone = true;
         $('#dlPng').disabled = false;
       }
+      $('#fail').hidden = true;
     } catch (err) {
-      setStatus(err.message, 'err');
       console.error(err);
+      // a failed first load leaves an empty stage: say what happened and offer a retry
+      if (!firstDone) $('#fail').hidden = false;
+      else setStatus('Could not update the photo. Check your connection and try again.', 'err');
     } finally {
       inFlight--;
       if (!inFlight) {
@@ -651,12 +654,12 @@
       renderBg();
       updateSummaries();
       wireDownload();
+      $('#retry').addEventListener('click', () => { $('#fail').hidden = true; render(); });
       render();
       loadCollections();
     } catch (err) {
-      setStatus(err.message, 'err');
-      $('#busyText').textContent = `Could not load: ${err.message}`;
       console.error(err);
+      $('#fail').hidden = false;
     }
   }
 

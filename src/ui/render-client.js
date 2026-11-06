@@ -18,14 +18,24 @@
     else p.resolve({ image: new ImageData(new Uint8ClampedArray(msg.buffer), msg.width, msg.height), ms: msg.ms });
   };
 
+  // Phones on a weak connection drop big downloads now and then, so each image is tried up to
+  // 3 times (with a cache-busting query on retries) before the render is reported as failed.
+  function fetchImage(url, attempt) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.decoding = 'async';
+      img.onload = () => resolve(img);
+      img.onerror = () => {
+        if (attempt >= 3) { reject(new Error(`Could not load ${url}`)); return; }
+        setTimeout(() => fetchImage(url, attempt + 1).then(resolve, reject), 600 * attempt);
+      };
+      img.src = attempt === 1 ? url : `${url}${url.includes('?') ? '&' : '?'}retry=${attempt}`;
+    });
+  }
+
   function loadImage(url) {
     if (!imagePromises.has(url)) {
-      imagePromises.set(url, new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = () => { imagePromises.delete(url); reject(new Error(`Could not load ${url}`)); };
-        img.src = url;
-      }));
+      imagePromises.set(url, fetchImage(url, 1).catch((err) => { imagePromises.delete(url); throw err; }));
     }
     return imagePromises.get(url);
   }
@@ -44,7 +54,9 @@
     } else {
       ctx.drawImage(img, 0, 0, w, h);
     }
-    return ctx.getImageData(0, 0, w, h);
+    const data = ctx.getImageData(0, 0, w, h);
+    c.width = c.height = 0; // iOS Safari keeps canvas memory until told otherwise
+    return data;
   }
 
   /** Ensure an image (at a size) is in the worker cache. Returns its key. */
@@ -54,6 +66,7 @@
     if (!pixelPromises.has(key)) {
       pixelPromises.set(key, loadImage(url).then((img) => {
         const data = drawToPixels(img, width, height, fit);
+        imagePromises.delete(url); // the pixels live in the worker now; do not keep the decoded bitmap too
         const buffer = data.data.buffer;
         worker.postMessage({ type: 'asset', key, width: data.width, height: data.height, buffer }, [buffer]);
         sentKeys.add(key);
@@ -109,10 +122,18 @@
     const key = `bin:${url}`;
     if (sentKeys.has(key)) return Promise.resolve(key);
     if (!binPromises.has(key)) {
-      binPromises.set(key, fetch(url).then((r) => {
-        if (!r.ok) throw new Error(`Could not load ${url}`);
-        return r.arrayBuffer();
-      }).then((buffer) => {
+      const attempt = async (n) => {
+        try {
+          const r = await fetch(n === 1 ? url : `${url}?retry=${n}`);
+          if (!r.ok) throw new Error(`Could not load ${url}`);
+          return await r.arrayBuffer();
+        } catch (err) {
+          if (n >= 3) throw err;
+          await new Promise((res) => setTimeout(res, 800 * n));
+          return attempt(n + 1);
+        }
+      };
+      binPromises.set(key, attempt(1).then((buffer) => {
         worker.postMessage({ type: 'bin', key, buffer }, [buffer]);
         sentKeys.add(key);
         return key;
@@ -160,7 +181,8 @@
     const W = Math.round(template.width * scale);
     const H = Math.round(template.height * scale);
     const [baseKey, patternKey, bgKey] = await Promise.all([
-      ensurePixels(`/files/${template.base}`, W, H, 'fill'),
+      // layered (PSD) templates are rebuilt from below.png + layers.bin, so the 4.7 MB photo is not needed
+      template.layered ? Promise.resolve(null) : ensurePixels(`/files/${template.base}`, W, H, 'fill'),
       ensurePixels(`/files/${patternFile}`),
       mode === 'mask' ? Promise.resolve(null) : backgroundKey(plan.background, W, H),
     ]);
