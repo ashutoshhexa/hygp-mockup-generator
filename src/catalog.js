@@ -27,16 +27,16 @@ const PATTERN_DIR = cachePath('patterns');
 const MAX_AGE_MS = 6 * 60 * 60 * 1000;
 const PATTERN_FILE = /^cache\/patterns\/(\d+)(?:\.s([\d.]+)\.x(-?[\d.]+)\.y(-?[\d.]+))?\.png$/;
 
-async function cachedJson(name, url) {
-  const file = path.join(CACHE, name);
-  if (fs.existsSync(file) && Date.now() - fs.statSync(file).mtimeMs < MAX_AGE_MS) {
+async function cachedJson(name, url, maxAge = MAX_AGE_MS, dir = CACHE) {
+  const file = path.join(dir, name);
+  if (fs.existsSync(file) && Date.now() - fs.statSync(file).mtimeMs < maxAge) {
     return JSON.parse(fs.readFileSync(file, 'utf8'));
   }
   try {
     const res = await fetch(url, { headers: { accept: 'application/json' } });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    fs.mkdirSync(CACHE, { recursive: true });
+    fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(file, JSON.stringify(data));
     return data;
   } catch (err) {
@@ -95,6 +95,8 @@ async function listPatterns(collectionId) {
 
 /** Make sure a catalog pattern is on disk. Local files (poc/patterns/...) pass through. */
 async function ensurePatternFile(rel) {
+  const lm = LEGACY_FILE.exec(String(rel || '').replace(/\\/g, '/'));
+  if (lm) return ensureLegacyFile(lm[1], lm[2]);
   const m = PATTERN_FILE.exec(String(rel || '').replace(/\\/g, '/'));
   if (!m) return null;
   const tile = await ensureTile(m[1]);
@@ -162,4 +164,81 @@ function framedFile(rel) {
   return rel;
 }
 
-module.exports = { listCollections, listPatterns, ensurePatternFile, patternFileFor, printFraming, framedFile };
+/* ---------------- legacy patterns ----------------
+ * GET .../legacy-patterns -> { patterns: [{ name: "0871", tiff_20mm: <signed S3 url, 6 h> }] }
+ * Only the 20 mm print TIFF exists (sRGB, 500 dpi, 28 mm tall = 20 mm strap + 4 mm bleed above
+ * and below, one horizontal repeat). The strap band is cut out once and cached as
+ * cache/legacy/<name>.png (patternScale 1 = true print size) plus a small square thumbnail.
+ */
+const LEGACY_DIR = cachePath('legacy');
+const LEGACY_FILE = /^cache\/legacy\/([A-Za-z0-9_-]{1,40})(\.png|\.thumb\.jpg)$/;
+const LEGACY_MAX_AGE_MS = 4 * 60 * 60 * 1000; // links expire after 6 h
+const BLEED_MM = 4, STRIP_MM = 28;
+let legacyMemo = null;
+
+async function legacyIndex() {
+  if (legacyMemo && Date.now() - legacyMemo.at < LEGACY_MAX_AGE_MS) return legacyMemo.byName;
+  // kept out of cache/shop (which is bundled for Vercel): its links expire
+  const data = await cachedJson('legacy-patterns.json', `${API}/legacy-patterns`, LEGACY_MAX_AGE_MS, LEGACY_DIR);
+  const byName = new Map((data.patterns || []).filter((p) => p.name && p.tiff_20mm).map((p) => [String(p.name), p.tiff_20mm]));
+  legacyMemo = { at: Date.now(), byName };
+  return byName;
+}
+
+/** Just the names (the client builds file and thumbnail paths from them). */
+async function listLegacy() {
+  return [...(await legacyIndex()).keys()].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+}
+
+const legacyJobs = new Map();
+async function ensureLegacyFile(name, kind) {
+  const strap = path.join(LEGACY_DIR, `${name}.png`);
+  const target = kind === '.png' ? strap : path.join(LEGACY_DIR, `${name}.thumb.jpg`);
+  if (fs.existsSync(target) && fs.statSync(target).size > 0) return target;
+  // one download per pattern even when the tile and the photo ask at once
+  if (!legacyJobs.has(name)) {
+    legacyJobs.set(name, buildLegacy(name, strap).finally(() => legacyJobs.delete(name)));
+  }
+  await legacyJobs.get(name);
+  return target;
+}
+
+async function buildLegacy(name, strapFile) {
+  const sharp = require('sharp');
+  if (!(fs.existsSync(strapFile) && fs.statSync(strapFile).size > 0)) {
+    const url = (await legacyIndex()).get(name);
+    if (!url) throw new Error(`Unknown legacy pattern ${name}`);
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Could not download legacy pattern ${name}: HTTP ${res.status}`);
+    const tif = Buffer.from(await res.arrayBuffer());
+    const meta = await sharp(tif).metadata();
+    const top = Math.round((meta.height * BLEED_MM) / STRIP_MM);
+    const height = meta.height - 2 * top;
+    const png = await sharp(tif).extract({ left: 0, top, width: meta.width, height })
+      .toColourspace('srgb').removeAlpha().png({ compressionLevel: 6 }).toBuffer();
+    fs.mkdirSync(LEGACY_DIR, { recursive: true });
+    fs.writeFileSync(`${strapFile}.part`, png);
+    fs.renameSync(`${strapFile}.part`, strapFile);
+  }
+  const thumb = strapFile.replace(/\.png$/, '.thumb.jpg');
+  if (!fs.existsSync(thumb)) {
+    // a square tile showing four strap-heights of the strip, as two rows (the strip repeats,
+    // so it wraps), so long patterns like a pumpkin-and-bats strip show more than one motif
+    const { data, info } = await sharp(strapFile).raw().toBuffer({ resolveWithObject: true });
+    const h = info.height, w = info.width, ch = info.channels, side = 2 * h;
+    const out = Buffer.alloc(side * side * ch);
+    for (let y = 0; y < side; y++) {
+      const sy = y % h, x0 = y < h ? 0 : side;
+      for (let x = 0; x < side; x++) {
+        const s = (sy * w + ((x0 + x) % w)) * ch, d = (y * side + x) * ch;
+        for (let c = 0; c < ch; c++) out[d + c] = data[s + c];
+      }
+    }
+    const jpg = await sharp(out, { raw: { width: side, height: side, channels: ch } })
+      .resize(220, 220).jpeg({ quality: 82 }).toBuffer();
+    fs.writeFileSync(`${thumb}.part`, jpg);
+    fs.renameSync(`${thumb}.part`, thumb);
+  }
+}
+
+module.exports = { listCollections, listPatterns, listLegacy, ensurePatternFile, patternFileFor, printFraming, framedFile };

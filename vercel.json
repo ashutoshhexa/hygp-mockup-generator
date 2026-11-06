@@ -7,6 +7,7 @@
     { "source": "/", "destination": "/ui/listing.html" },
     { "source": "/listing", "destination": "/ui/listing.html" },
     { "source": "/files/cache/patterns/:file", "destination": "/api" },
+    { "source": "/files/cache/legacy/:file", "destination": "/api" },
     { "source": "/api/:path*", "destination": "/api" }
   ],
   "functions": {

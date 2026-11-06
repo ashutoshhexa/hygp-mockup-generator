@@ -299,7 +299,26 @@
   /* ---------------- 1. pattern ---------------- */
   function patternLabel(file) {
     const d = state.decision;
+    const legacy = /^cache\/legacy\/(.+)\.png$/.exec(file || '');
+    if (legacy) return `Legacy ${legacy[1]}`;
     return patternLabels.get(file) || (file === d.patternFile && d.patternLabel) || file.split('/').pop().replace(/\.[^.]+$/, '');
+  }
+
+  /* legacy patterns: only numbers and a 20 mm print TIFF; the server cuts the strap and a thumbnail */
+  const LEGACY_PAGE = 60;
+  const legacyPattern = (n) => ({ file: `cache/legacy/${n}.png`, label: `Legacy ${n}`, thumb: `/files/cache/legacy/${encodeURIComponent(n)}.thumb.jpg` });
+
+  async function selectSource(source) {
+    state.source = source;
+    state.search = '';
+    state.legacyLimit = LEGACY_PAGE;
+    if (source === 'legacy' && !state.legacyNames) {
+      state.loadingPatterns = true;
+      renderPattern();
+      try { state.legacyNames = (await api('/api/legacy-patterns')).names; } catch (err) { state.patternError = `Legacy patterns unavailable (${err.message}).`; state.legacyNames = []; }
+      state.loadingPatterns = false;
+    }
+    renderPattern();
   }
   const currentPatternFor = (index) => MockupPlan.patternForCollar(state.decision, index);
   const scaleFor = (index) => MockupPlan.patternScaleForCollar(state.decision, index, state.template);
@@ -332,10 +351,17 @@
     renderPattern();
   }
 
+  // { list: tiles to show, total: how many match }
   function visiblePatterns() {
-    const list = state.collection === 'local' ? state.localPatterns : state.patternsBy.get(state.collection) || [];
     const q = state.search.trim().toLowerCase();
-    return q ? list.filter((p) => p.label.toLowerCase().includes(q)) : list;
+    if (state.source === 'legacy') {
+      const names = state.legacyNames || [];
+      const hits = q ? names.filter((n) => n.toLowerCase().includes(q.replace(/^legacy\s*/, ''))) : names;
+      return { list: hits.slice(0, state.legacyLimit || LEGACY_PAGE).map(legacyPattern), total: hits.length };
+    }
+    const list = state.collection === 'local' ? state.localPatterns : state.patternsBy.get(state.collection) || [];
+    const hits = q ? list.filter((p) => p.label.toLowerCase().includes(q)) : list;
+    return { list: hits, total: hits.length };
   }
 
   // drop per-collar overrides that no longer differ from the shared value
@@ -400,15 +426,20 @@
   function renderPatternGrid() {
     const grid = $('#patGrid');
     if (!grid) return;
-    const list = visiblePatterns();
+    const { list, total } = visiblePatterns();
     const note = $('#patCount');
     if (state.loadingPatterns) {
       grid.replaceChildren(...Array.from({ length: 8 }, () => el('span', { class: 'pat skeleton' }, el('span', { class: 'pat-img' }), el('span', { class: 'pat-name' }))));
       if (note) note.textContent = 'Loading…';
       return;
     }
-    grid.replaceChildren(...(list.length ? list.map(patternTile) : [el('p', { class: 'empty' }, state.search ? 'No pattern matches that search.' : 'No patterns here.')]));
-    if (note) note.textContent = `${list.length} pattern${list.length === 1 ? '' : 's'}`;
+    const more = total > list.length ? el('button', {
+      class: 'btn small more-pats', type: 'button',
+      onclick: () => { state.legacyLimit = (state.legacyLimit || LEGACY_PAGE) + LEGACY_PAGE; renderPatternGrid(); },
+    }, `Show more (${total - list.length} left)`) : null;
+    grid.replaceChildren(...(list.length ? list.map(patternTile) : [el('p', { class: 'empty' }, state.search ? 'No pattern matches that search.' : 'No patterns here.')]), ...(more ? [more] : []));
+    const legacy = state.source === 'legacy';
+    if (note) note.textContent = `${total} ${legacy ? 'legacy ' : ''}pattern${total === 1 ? '' : 's'}${legacy && !state.search ? ' · search by number' : ''}`;
   }
 
   // the target picker: All collars / Top / Middle / Bottom, each showing what it has now
@@ -460,18 +491,28 @@
   }
 
   function renderPattern() {
+    const legacy = state.source === 'legacy';
+    const sourceSwitch = el('div', { class: 'seg source-seg', role: 'group', 'aria-label': 'Pattern library' },
+      [['current', 'Current'], ['legacy', 'Legacy']].map(([id, label]) => el('button', {
+        type: 'button', class: (state.source || 'current') === id ? 'on' : '', 'aria-pressed': String((state.source || 'current') === id),
+        onclick: () => { if ((state.source || 'current') !== id) selectSource(id); },
+      }, label)));
     const select = el('select', { 'aria-label': 'Collection', onchange: (e) => selectCollection(e.target.value) },
       state.collections.map((c) => el('option', { value: c.id, selected: c.id === state.collection }, c.title)),
       state.localPatterns.length ? el('option', { value: 'local', selected: state.collection === 'local' }, 'Local files') : null);
     const search = el('div', { class: 'search' }, icon(ICONS.search), el('input', {
-      type: 'search', placeholder: 'Search patterns', value: state.search, 'aria-label': 'Search patterns',
-      oninput: (e) => { state.search = e.target.value; renderPatternGrid(); },
+      type: 'search', placeholder: legacy ? 'Pattern number, e.g. 0871' : 'Search patterns', value: state.search, 'aria-label': 'Search patterns',
+      inputmode: legacy ? 'numeric' : null,
+      oninput: (e) => { state.search = e.target.value; state.legacyLimit = LEGACY_PAGE; renderPatternGrid(); },
     }));
     $('#patternBody').replaceChildren(...[
+      sourceSwitch,
       el('div', { class: 'field' }, el('span', {}, 'Change'), el('div', { class: 'apply-row', id: 'applyRow' })),
-      el('div', { class: 'field-row' },
-        el('label', { class: 'field grow' }, el('span', {}, 'Collection'), select),
-        el('label', { class: 'field grow' }, el('span', {}, 'Search'), search)),
+      legacy
+        ? el('label', { class: 'field' }, el('span', {}, 'Search'), search)
+        : el('div', { class: 'field-row' },
+          el('label', { class: 'field grow' }, el('span', {}, 'Collection'), select),
+          el('label', { class: 'field grow' }, el('span', {}, 'Search'), search)),
       el('div', { class: 'pat-head' }, el('span', { id: 'patCount', class: 'muted' }), state.patternError ? el('span', { class: 'err' }, state.patternError) : null),
       el('div', { class: 'pat-grid', id: 'patGrid' }),
       el('div', { class: 'field size', id: 'sizeBox' }),
@@ -579,6 +620,7 @@
       el('p', { class: 'help' }, 'Made-up names and 419-555 numbers, laser engraved on each buckle. The lettering previews use your pet name.'),
       ...collars().map(nameCard));
   }
+
 
   /* ---------------- 4. background ---------------- */
   function currentBgId() {
@@ -688,6 +730,8 @@
       $('#retry').addEventListener('click', () => { $('#fail').hidden = true; render(); });
       render();
       loadCollections();
+      // a design that uses a legacy pattern opens on the Legacy library
+      if (/^cache\/legacy\//.test(state.decision.patternFile || '')) selectSource('legacy');
     } catch (err) {
       console.error(err);
       $('#fail').hidden = false;

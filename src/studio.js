@@ -16,6 +16,8 @@
  *   /api/collections/:id/patterns   patterns in one collection
  *   /files/...              read-only access to poc/ (photos, patterns, plates)
  *   /files/cache/patterns/<id>.png  a catalog pattern, downloaded on first use
+ *   /api/legacy-patterns            names of the legacy patterns
+ *   /files/cache/legacy/<name>.png  a legacy pattern's strap, cut from its 20 mm TIFF (.thumb.jpg: tile)
  */
 const fs = require('fs');
 const http = require('http');
@@ -108,7 +110,7 @@ function currentDecision() {
 // Live site: the default design must use a store pattern (local poc/patterns are not deployed).
 async function liveDecision() {
   const decision = currentDecision();
-  const isStore = (f) => f && f.startsWith('cache/patterns/') && f.endsWith('.png');
+  const isStore = (f) => f && (f.startsWith('cache/patterns/') || f.startsWith('cache/legacy/')) && f.endsWith('.png');
   if (!READ_ONLY || (isStore(decision.patternFile) && (decision.collarPatterns || []).every((f) => !f || isStore(f)))) return decision;
   const collections = await catalog.listCollections();
   const def = collections.find((c) => c.isDefault) || collections[0];
@@ -194,10 +196,11 @@ async function handle(req, res) {
       return f ? sendFile(res, f) : sendJson(res, 400, { error: 'bad path' });
     }
     // catalog patterns: downloaded on first use, then served from cache/patterns/
-    if (req.method === 'GET' && p.startsWith('/files/cache/patterns/')) {
+    if (req.method === 'GET' && (p.startsWith('/files/cache/patterns/') || p.startsWith('/files/cache/legacy/'))) {
       const f = await catalog.ensurePatternFile(p.slice('/files/'.length));
       return f ? sendFile(res, f, 'max-age=86400') : sendJson(res, 400, { error: 'bad path' });
     }
+    if (req.method === 'GET' && p === '/api/legacy-patterns') return sendJson(res, 200, { names: await catalog.listLegacy() });
     if (req.method === 'GET' && p === '/api/collections') return sendJson(res, 200, { collections: await catalog.listCollections() });
     const cm = p.match(/^\/api\/collections\/(\d+)\/patterns$/);
     if (req.method === 'GET' && cm) return sendJson(res, 200, { patterns: await catalog.listPatterns(cm[1]) });
