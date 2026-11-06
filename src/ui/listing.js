@@ -155,27 +155,58 @@
   }
 
   /*
-   * Square version without distorting anything: the 4:3 photo is placed untouched in the middle
-   * of a square and the backdrop is continued above and below it. Each added row is the edge of
-   * the photo (averaged over a few rows), blurred sideways a little more the further it is from
-   * the photo, so the backdrop fades on smoothly with no seam, stretch or repeated detail.
-   * Works at any size (used for the 3000 px download and the dialog thumbnail).
+   * Square version without distorting anything. With template.squareCrop the square is cut so the
+   * belt has the same margin on the left and right (the D-ring may be cut on the right), which
+   * makes the collars, and the engraving, as large as possible in small listing thumbnails.
+   * The crop is centred on the product; where it runs past the photo, the backdrop is continued
+   * (extendRows). Without squareCrop the whole photo is kept and the backdrop is added above and
+   * below. Works at any size (the 3000 px download and the dialog thumbnail); the result is
+   * src.width square.
    */
   function squareCanvas(src) {
     const W = src.width, H = src.height;
-    if (W <= H) return src; // already square or portrait: nothing to add
-    const S = W, top = Math.floor((S - H) / 2), bottom = S - H - top;
+    if (W <= H) return src; // already square or portrait
+    const crop = state.template && state.template.squareCrop;
+    if (!crop) {
+      const top = Math.floor((W - H) / 2);
+      return extendRows(src, top, W - H - top);
+    }
+    const k = W / state.template.width;
+    const [b0, b1] = crop.beltX.map((v) => v * k);
+    const [p0, p1] = crop.productY.map((v) => v * k);
+    const m = crop.margin != null ? crop.margin : 0.09;
+    const S = Math.min(W, Math.round((b1 - b0) / (1 - 2 * m)));
+    const x0 = Math.max(0, Math.min(W - S, Math.round(b0 - m * S)));
+    const y0 = Math.round((p0 + p1) / 2 - S / 2);
+    const padTop = Math.max(0, -y0), padBottom = Math.max(0, y0 + S - H);
+    const tall = padTop || padBottom ? extendRows(src, padTop, padBottom) : src;
     const out = document.createElement('canvas');
-    out.width = S; out.height = S;
+    out.width = W; out.height = W;
+    const ctx = out.getContext('2d');
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(tall, x0, y0 + padTop, S, S, 0, 0, W, W);
+    return out;
+  }
+
+  /*
+   * Continue the backdrop above and below the photo, which is kept untouched. Each added row is
+   * the edge of the photo (averaged over a few rows), blurred sideways a little more the further
+   * it is from the photo, so the backdrop fades on with no seam, stretch or repeated detail.
+   */
+  function extendRows(src, top, bottom) {
+    const W = src.width, H = src.height, S = H + top + bottom;
+    const out = document.createElement('canvas');
+    out.width = W; out.height = S;
     const ctx = out.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(src, 0, top);
-    const img = ctx.getImageData(0, 0, S, S);
+    const img = ctx.getImageData(0, 0, W, S);
     const d = img.data;
     const band = Math.max(2, Math.round(H * 0.01));
     const edgeProfile = (y0) => {
       const row = new Float64Array(W * 3);
       for (let y = y0; y < y0 + band; y++) for (let x = 0; x < W; x++) {
-        const j = ((y + top) * S + x) * 4;
+        const j = ((y + top) * W + x) * 4;
         row[x * 3] += d[j]; row[x * 3 + 1] += d[j + 1]; row[x * 3 + 2] += d[j + 2];
       }
       for (let i = 0; i < row.length; i++) row[i] /= band;
@@ -189,7 +220,7 @@
         const r = Math.min(Math.floor(W / 3), Math.round(k * 0.6));
         const y = rowAt(k);
         for (let x = 0; x < W; x++) {
-          const a = Math.max(0, x - r), b = Math.min(W, x + r + 1), n = b - a, j = (y * S + x) * 4;
+          const a = Math.max(0, x - r), b = Math.min(W, x + r + 1), n = b - a, j = (y * W + x) * 4;
           for (let c = 0; c < 3; c++) d[j + c] = (pre[b * 3 + c] - pre[a * 3 + c]) / n + (Math.random() - 0.5); // +-0.5 dither: no banding
           d[j + 3] = 255;
         }

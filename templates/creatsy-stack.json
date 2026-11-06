@@ -6,6 +6,11 @@
  "height": 2250,
  "renderScale": 1,
  "patternScale": 1,
+ "squareCrop": {
+  "beltX": [401, 2426],
+  "productY": [396, 1854],
+  "margin": 0.09
+ },
  "bgBlur": 6,
  "bgLift": 0.2,
  "source": {
