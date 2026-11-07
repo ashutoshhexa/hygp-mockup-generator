@@ -715,6 +715,215 @@
 
   const PART_COLORS = { bottom: [235, 70, 60], front: [235, 70, 60], middle: [40, 170, 90], top: [50, 110, 240] };
 
+  // op.tilt -> shear of u by v (content units). Measured from the piece's own UV map:
+  // an extra lean of t degrees needs du = -tan(t) * (du/dx) / (dv/dy) per unit of v.
+  const tiltMemo = new Map();
+  function tiltFor(op, UV, A) {
+    if (!op.tilt) return { shear: 0, vMid: 0 };
+    const key = `${op.uv.offset}|${op.tilt}`;
+    if (tiltMemo.has(key)) return tiltMemo.get(key);
+    const w = op.uv.w, h = op.uv.h, n = w * h;
+    let dudx = 0, dvdy = 0, vs = 0, c = 0;
+    for (let y = 0; y < h - 1; y += 5) for (let x = 0; x < w - 1; x += 5) {
+      const i = y * w + x;
+      if (A[i] < 250 || A[i + 1] < 250 || A[i + w] < 250) continue;
+      dudx += (UV[i + 1] - UV[i]) / op.uv.su; dvdy += (UV[n + i + w] - UV[n + i]) / op.uv.sv; vs += UV[n + i] / op.uv.sv; c++;
+    }
+    const r = c && dvdy ? { shear: (-Math.tan((op.tilt * Math.PI) / 180) * dudx) / dvdy, vMid: vs / c } : { shear: 0, vMid: 0 };
+    tiltMemo.set(key, r);
+    return r;
+  }
+
+  /*
+   * Quiet stitching (template.layered.threadSoften, 0..1). The photo's shading layers carry the
+   * stitch texture (bright and dark zigzags). Inside the stitches (dilated, feathered) the shading
+   * is replaced by the woven webbing right beside them: the detail of a neighbouring patch of
+   * webbing on top of this spot's own smooth light level, so folds and light stay, stitches fade.
+   * Computed once per template; returns a replacement gray layer per overlay index.
+   */
+  const softMemo = new Map();
+  function softenedShading(template, u8) {
+    const Lt = template.layered;
+    const s = Lt.threadSoften || 0;
+    const key = `${Lt.bin}|${s}`;
+    if (softMemo.has(key)) return softMemo.get(key);
+    const out = [];
+    const threads = Lt.stack.filter((o) => o.type === 'fill' && o.role === 'thread');
+    if (!s || !threads.length) { softMemo.set(key, out); return out; }
+    const W = template.width, H = template.height, PAD = 140;
+    const x0 = Math.max(0, Math.min(...threads.map((t) => t.alpha.x)) - PAD);
+    const y0 = Math.max(0, Math.min(...threads.map((t) => t.alpha.y)) - PAD);
+    const x1 = Math.min(W, Math.max(...threads.map((t) => t.alpha.x + t.alpha.w)) + PAD);
+    const y1 = Math.min(H, Math.max(...threads.map((t) => t.alpha.y + t.alpha.h)) + PAD);
+    const bw = x1 - x0, bh = y1 - y0, N = bw * bh;
+    const paint = (ref, f) => {
+      const A = u8(ref);
+      for (let y = 0; y < ref.h; y++) {
+        const gy = ref.y + y - y0;
+        if (gy < 0 || gy >= bh) continue;
+        for (let x = 0; x < ref.w; x++) {
+          const gx = ref.x + x - x0;
+          if (gx >= 0 && gx < bw) f(gy * bw + gx, A[y * ref.w + x]);
+        }
+      }
+    };
+    // stitch mask, dilated 4 px (fuzz and shadow), then feathered
+    let T = new Float32Array(N);
+    for (const t of threads) paint(t.alpha, (j, a) => { if (a / 255 > T[j]) T[j] = a / 255; });
+    T = maxFilter(T, bw, bh, 4);
+    const M = boxBlur(T, bw, bh, 3);
+    // where a webbing sample may come from: printed fabric, not metal, not a stitch
+    const web = new Uint8Array(N);
+    for (const op of Lt.stack) {
+      if (op.type === 'pattern') paint(op.alpha, (j, a) => { if (a >= 250) web[j] = 1; });
+      else if (op.role === 'metal') paint(op.alpha, (j, a) => { if (a > 5) web[j] = 0; });
+    }
+    for (let j = 0; j < N; j++) if (T[j] > 0) web[j] = 0;
+    // source for each stitch pixel: the clean webbing right beside the stitch on the same row,
+    // mirrored back and forth within that gap (never across another stitch, metal or a shadow edge)
+    const src = new Int32Array(N).fill(-1);
+    const GAP = 3, MAXRUN = 60;
+    for (let y = 0; y < bh; y++) {
+      const row = y * bw;
+      let x = 0;
+      while (x < bw) {
+        if (T[row + x] <= 0) { x++; continue; }
+        let e = x;
+        while (e < bw && T[row + e] > 0) e++;
+        // clean webbing to the left of the run and to the right of it
+        let l = 0; while (l < MAXRUN && x - GAP - l - 1 >= 0 && web[row + x - GAP - l - 1]) l++;
+        let r = 0; while (r < MAXRUN && e + GAP + r < bw && web[row + e + GAP + r]) r++;
+        const useLeft = l >= r, len = Math.max(l, r);
+        if (len >= 6) {
+          for (let p = x; p < e; p++) {
+            const t = p - x, m = t % (2 * len), off = m < len ? m : 2 * len - 1 - m; // mirror walk
+            src[row + p] = useLeft ? row + x - GAP - 1 - off : row + e + GAP + off;
+          }
+        }
+        x = e;
+      }
+    }
+    Lt.overlay.forEach((op, idx) => {
+      if (op.type !== 'blend') return;
+      const ref = op.alpha, G = u8(op.gray);
+      const L = new Float32Array(N);
+      for (let y = 0; y < bh; y++) {
+        const gy = y + y0 - ref.y;
+        if (gy < 0 || gy >= ref.h) continue;
+        for (let x = 0; x < bw; x++) {
+          const gx = x + x0 - ref.x;
+          if (gx >= 0 && gx < ref.w) L[y * bw + x] = G[gy * ref.w + gx];
+        }
+      }
+      const S = boxBlur(boxBlur(L, bw, bh, 12), bw, bh, 12);
+      const alt = G.slice();
+      for (let y = 0; y < bh; y++) {
+        const gy = y + y0 - ref.y;
+        if (gy < 0 || gy >= ref.h) continue;
+        for (let x = 0; x < bw; x++) {
+          const j = y * bw + x, m = Math.min(1, M[j]) * s;
+          if (m <= 0.001) continue;
+          const gx = x + x0 - ref.x;
+          if (gx < 0 || gx >= ref.w) continue;
+          const q = src[j] >= 0 ? src[j] : -1;
+          // nearest stitch pixel's source when this is feather outside the run
+          const target = q >= 0 ? S[j] + (L[q] - S[q]) : S[j];
+          const v = L[j] + (target - L[j]) * m;
+          alt[gy * ref.w + gx] = v < 0 ? 0 : v > 255 ? 255 : Math.round(v);
+        }
+      }
+      out[idx] = alt;
+    });
+    softMemo.set(key, out);
+    return out;
+  }
+
+  /*
+   * The printed pieces have holes where the stitches sit (the PSD's thread covered them). When the
+   * thread is see-through (threadOpacity < 1) the print has to continue underneath, or the white
+   * base fabric shows. Each stitch pixel is given to the printed piece that surrounds it (its UV map
+   * runs on under the stitch). Returns stack index -> { idx: box indices, a: alpha }.
+   */
+  const holeMemo = new Map();
+  function stitchHoles(template, u8) {
+    const Lt = template.layered;
+    const key = `${Lt.bin}|${Lt.threadOpacity}`;
+    if (holeMemo.has(key)) return holeMemo.get(key);
+    const out = new Map();
+    holeMemo.set(key, out);
+    if (Lt.threadOpacity == null || Lt.threadOpacity >= 1) return out;
+    const pats = Lt.stack.map((op, si) => ({ op, si })).filter((p) => p.op.type === 'pattern');
+    const alphaAt = (op, A, gx, gy) => {
+      const x = gx - op.alpha.x, y = gy - op.alpha.y;
+      return x < 0 || y < 0 || x >= op.alpha.w || y >= op.alpha.h ? 0 : A[y * op.alpha.w + x];
+    };
+    const As = new Map(pats.map((p) => [p.si, u8(p.op.alpha)]));
+    const acc = new Map();
+    for (const th of Lt.stack.filter((o) => o.type === 'fill' && o.role === 'thread')) {
+      const TA = u8(th.alpha);
+      for (let y = 0; y < th.alpha.h; y++) for (let x = 0; x < th.alpha.w; x++) {
+        const t = TA[y * th.alpha.w + x] / 255;
+        if (t <= 0) continue;
+        const gx = th.alpha.x + x, gy = th.alpha.y + y;
+        let best = null, bestScore = 0;
+        for (const p of pats) {
+          if (p.op.slot !== th.slot) continue;
+          const A = As.get(p.si);
+          let score = 0;
+          for (const d of [-40, -28, -16, 16, 28, 40]) if (alphaAt(p.op, A, gx + d, gy) >= 250) score++;
+          if (score > bestScore) { bestScore = score; best = p; }
+        }
+        if (!best) continue;
+        const own = alphaAt(best.op, As.get(best.si), gx, gy) / 255;
+        if (own >= 1) continue;
+        if (!acc.has(best.si)) acc.set(best.si, { idx: [], a: [] });
+        const e = acc.get(best.si);
+        e.idx.push((gy - best.op.alpha.y) * best.op.alpha.w + (gx - best.op.alpha.x));
+        // edges are anti-aliased against each other (print = 1 - thread): top the print's own
+        // coverage up by the thread's, so no base fabric shows through as a light outline
+        e.a.push(Math.min(1, t / (1 - own)));
+      }
+    }
+    for (const [si, e] of acc) out.set(si, { idx: Int32Array.from(e.idx), a: Float32Array.from(e.a) });
+    return out;
+  }
+
+  function maxFilter(a, w, h, r) {
+    const t = new Float32Array(a.length), o = new Float32Array(a.length);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let m = 0;
+      for (let d = -r; d <= r; d++) { const xx = x + d; if (xx >= 0 && xx < w && a[y * w + xx] > m) m = a[y * w + xx]; }
+      t[y * w + x] = m;
+    }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let m = 0;
+      for (let d = -r; d <= r; d++) { const yy = y + d; if (yy >= 0 && yy < h && t[yy * w + x] > m) m = t[yy * w + x]; }
+      o[y * w + x] = m;
+    }
+    return o;
+  }
+
+  function boxBlur(a, w, h, r) {
+    const t = new Float32Array(a.length), o = new Float32Array(a.length);
+    for (let y = 0; y < h; y++) {
+      let acc = 0, cnt = 0;
+      for (let x = -r; x < w + r; x++) {
+        if (x + r < w) { acc += a[y * w + x + r]; cnt++; }
+        if (x - r - 1 >= 0) { acc -= a[y * w + x - r - 1]; cnt--; }
+        if (x >= 0 && x < w) t[y * w + x] = acc / cnt;
+      }
+    }
+    for (let x = 0; x < w; x++) {
+      let acc = 0, cnt = 0;
+      for (let y = -r; y < h + r; y++) {
+        if (y + r < h) { acc += t[(y + r) * w + x]; cnt++; }
+        if (y - r - 1 >= 0) { acc -= t[(y - r - 1) * w + x]; cnt--; }
+        if (y >= 0 && y < h) o[y * w + x] = acc / cnt;
+      }
+    }
+    return o;
+  }
+
   /**
    * Replays a PSD's layer stack (see src/tools/import-psd.js):
    * below -> collar fills / warped pattern pieces / metal / thread -> overlay shading -> engraving.
@@ -826,22 +1035,24 @@
         // Seam thread: real stitching picks up some of the webbing colour around it, so the
         // thread is mixed with the printed pattern underneath (threadTint 0 = flat colour).
         const tint = op.role === 'thread' && mode !== 'mask' ? Lt.threadTint || 0 : 0;
+        // threadOpacity < 1: the stitches are mostly see-through (the client prefers them quiet)
+        const thrOp = op.role === 'thread' && mode !== 'mask' && Lt.threadOpacity != null ? Lt.threadOpacity : 1;
         if (tint > 0) {
           each(op.alpha, (k, i) => {
-            const a = (A[i] / 255) * opac;
+            const a = (A[i] / 255) * opac * thrOp;
             if (a <= 0) return;
             const tr = cr + (R[k] - cr) * tint, tg = cg + (G[k] - cg) * tint, tb = cb + (B[k] - cb) * tint;
             R[k] += (tr - R[k]) * a; G[k] += (tg - G[k]) * a; B[k] += (tb - B[k]) * a;
           });
-          cover(op, A, opac, finIdx);
+          cover(op, A, opac * thrOp, finIdx);
           continue;
         }
         each(op.alpha, (k, i) => {
-          const a = (A[i] / 255) * opac;
+          const a = (A[i] / 255) * opac * thrOp;
           if (a <= 0) return;
           R[k] += (cr - R[k]) * a; G[k] += (cg - G[k]) * a; B[k] += (cb - B[k]) * a;
         });
-        cover(op, A, opac, finIdx);
+        cover(op, A, opac * thrOp, finIdx);
         continue;
       }
       if (op.type === 'pattern') {
@@ -875,13 +1086,28 @@
         const lvl = Math.max(0, Math.min(chain.length - 1, Math.floor(Math.log2(Math.max(1, texPerPx)))));
         const img = chain[lvl];
         const ku = img.height / tile;
+        // op.tilt (degrees): lean the print on this piece so stripes across the strap run
+        // parallel to its stitching (a shear of u by v, about the piece's middle)
+        const { shear, vMid } = tiltFor(op, UV, A);
         each(op.alpha, (k, i) => {
           const a = (A[i] / 255) * opac;
           if (a <= 0) return;
-          const u = UV[i] / op.uv.su, v = UV[n + i] / op.uv.sv;
+          const v = UV[n + i] / op.uv.sv, u = UV[i] / op.uv.su + shear * (v - vMid);
           sampleWrap(img, u * ku, v * ku, tmp);
           R[k] += (tmp[0] / 255 - R[k]) * a; G[k] += (tmp[1] / 255 - G[k]) * a; B[k] += (tmp[2] / 255 - B[k]) * a;
         });
+        // print continues under see-through stitches
+        const holes = stitchHoles(template, u8).get(Lt.stack.indexOf(op));
+        if (holes) {
+          const bw = op.alpha.w;
+          for (let h = 0; h < holes.idx.length; h++) {
+            const i = holes.idx[h], a = holes.a[h] * opac;
+            const k = (((i / bw) | 0) + op.alpha.y - ry0) * RW + (i % bw) + op.alpha.x - rx0;
+            const v = UV[n + i] / op.uv.sv, u = UV[i] / op.uv.su + shear * (v - vMid);
+            sampleWrap(img, u * ku, v * ku, tmp);
+            R[k] += (tmp[0] / 255 - R[k]) * a; G[k] += (tmp[1] / 255 - G[k]) * a; B[k] += (tmp[2] / 255 - B[k]) * a;
+          }
+        }
         cover(op, A, opac, 0);
       }
     }
@@ -902,7 +1128,9 @@
             R[k] += (lv(R[k]) - R[k]) * m; G[k] += (lv(G[k]) - G[k]) * m; B[k] += (lv(B[k]) - B[k]) * m;
           });
         } else if (op.type === 'blend') {
-          const A = u8(op.alpha), Gy = u8(op.gray), fn = BLEND[op.mode] || BLEND.normal, opac = op.opacity;
+          // stitch texture in the photo's shading is swapped for the webbing beside it (threadSoften)
+          const soft = softenedShading(template, u8);
+          const A = u8(op.alpha), Gy = soft[Lt.overlay.indexOf(op)] || u8(op.gray), fn = BLEND[op.mode] || BLEND.normal, opac = op.opacity;
           each(op.alpha, (k, i) => {
             const a = (A[i] / 255) * opac;
             if (a <= 0) return;
