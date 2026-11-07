@@ -29,7 +29,8 @@ function copy(from, to) {
   for (const name of ['core.js', 'plan.js']) copy(`src/mockup/${name}`, `mockup/${name}`);
 
   const hero = JSON.parse(fs.readFileSync(path.join(ROOT, 'templates', 'creatsy-stack.json'), 'utf8'));
-  const files = new Set([hero.base, hero.layered.below, hero.layered.bin, ...Object.values(hero.layered.metalPlates || {})]);
+  const files = new Set([hero.base, hero.layered.below, hero.layered.bin, ...Object.values(hero.layered.metalPlates || {}),
+    ...Object.values(hero.layered.metalPlateOptions || {}).flat().map((o) => o.file)]);
   for (const f of files) copy(f, `files/${f}`);
 
   const t0 = Date.now();
