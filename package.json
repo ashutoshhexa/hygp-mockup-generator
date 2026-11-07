@@ -10,9 +10,11 @@
     "plates:dogs": "node src/generate-plates.js --kind dogs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.6.0",
     "@resvg/resvg-js": "^2.6.2",
     "ag-psd": "^34.1.0",
     "fontkit": "^2.0.4",
-    "sharp": "^0.35.5"
+    "sharp": "^0.35.5",
+    "zod": "^4.6.7"
   }
 }

@@ -241,4 +241,27 @@ async function buildLegacy(name, strapFile) {
   }
 }
 
-module.exports = { listCollections, listPatterns, listLegacy, ensurePatternFile, patternFileFor, printFraming, framedFile };
+// What the store says about a pattern file: { label, thumb, collection }. Read from the cached
+// collection lists only (no network), so callers can't make the server fetch arbitrary URLs.
+function describePattern(rel) {
+  const lm = LEGACY_FILE.exec(String(rel || ''));
+  // legacy patterns have no store preview: hand over our own thumbnail (made from the TIFF)
+  if (lm) return { label: `Legacy pattern ${lm[1]}`, thumb: null, thumbFile: `cache/legacy/${lm[1]}.thumb.jpg`, collection: 'Legacy' };
+  const m = PATTERN_FILE.exec(String(rel || ''));
+  if (!m || !fs.existsSync(CACHE)) return null;
+  let titles = {};
+  try {
+    for (const c of JSON.parse(fs.readFileSync(path.join(CACHE, 'collections.json'), 'utf8')).custom_collections || []) titles[String(c.id)] = c.title;
+  } catch { titles = {}; }
+  for (const name of fs.readdirSync(CACHE)) {
+    const cm = /^products-(\d+)\.json$/.exec(name);
+    if (!cm) continue;
+    let data;
+    try { data = JSON.parse(fs.readFileSync(path.join(CACHE, name), 'utf8')); } catch { continue; }
+    const p = (data.products || []).find((x) => String(x.id) === m[1]);
+    if (p) return { label: String(p.name || p.id).replace(/_/g, ' ').trim(), thumb: p.preview || null, collection: titles[cm[1]] || null };
+  }
+  return null;
+}
+
+module.exports = { listCollections, listPatterns, listLegacy, ensurePatternFile, patternFileFor, printFraming, framedFile, describePattern };

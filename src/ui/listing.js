@@ -565,6 +565,11 @@
     const nameInput = el('input', {
       id: `${id}-name`, type: 'text', value: collar.name || '', maxlength: '14', autocomplete: 'off', placeholder: 'e.g. Biscuit',
       oninput: (e) => { collar.name = e.target.value; changed(); refreshPreviews(); },
+      onfocus: () => {
+        state.nameTarget = c.index;
+        const hint = $('#ideaHint b');
+        if (hint) hint.textContent = `${c.short} collar`;
+      },
     });
     const phoneInput = el('input', {
       id: `${id}-phone`, type: 'text', value: collar.phone || '', inputmode: 'tel', autocomplete: 'off', placeholder: '419-555-0148',
@@ -618,9 +623,82 @@
   function renderNames() {
     $('#namesBody').replaceChildren(
       el('p', { class: 'help' }, 'Made-up names and 419-555 numbers, laser engraved on each buckle. The lettering previews use your pet name.'),
+      nameIdeas(),
       ...collars().map(nameCard));
   }
 
+  /* name ideas: names that match the pattern, tap one to put it on a collar */
+  const patternFilesInUse = () => [...new Set(collars().map((c) => currentPatternFor(c.index)).filter(Boolean))];
+
+  function ideaTarget() {
+    const list = collars();
+    return list.find((c) => c.index === state.nameTarget) || list[0];
+  }
+
+  async function fetchIdeas(more) {
+    const files = patternFilesInUse();
+    const shown = state.ideas && state.ideas.key === files.join('|') ? state.ideas.names : [];
+    const used = state.decision.listing.collars.map((c) => c.name).filter(Boolean);
+    const q = new URLSearchParams({ files: files.join('|') });
+    if (more) { q.set('more', '1'); q.set('avoid', [...new Set([...shown, ...used])].join(',')); }
+    state.ideasLoading = true;
+    renderNames();
+    try {
+      const r = await api(`/api/name-ideas?${q}`);
+      state.ideas = { ...r, key: files.join('|') };
+    } catch (err) {
+      setStatus(`Name ideas: ${err.message}`, 'err');
+    }
+    state.ideasLoading = false;
+    renderNames();
+  }
+
+  function useName(name, index) {
+    state.decision.listing.collars[index].name = name;
+    const list = collars();
+    const at = list.findIndex((c) => c.index === index);
+    state.nameTarget = list[(at + 1) % list.length].index; // next tap fills the next collar
+    renderNames();
+    changed();
+  }
+
+  function nameIdeas() {
+    const files = patternFilesInUse();
+    const ideas = state.ideas && state.ideas.key === files.join('|') ? state.ideas : null;
+    const target = ideaTarget();
+    const sparkle = el('span', { class: 'spark', 'aria-hidden': 'true' }, '✦');
+    if (state.ideasLoading) {
+      return el('div', { class: 'ideas' },
+        el('div', { class: 'ideas-head' },
+          el('div', {}, el('strong', {}, sparkle, ' Name ideas'), el('small', {}, 'Finding names that match the pattern…')),
+          el('span', { class: 'ring small', 'aria-hidden': 'true' })));
+    }
+    if (!ideas) {
+      return el('div', { class: 'ideas' },
+        el('div', { class: 'ideas-head' },
+          el('div', {}, el('strong', {}, sparkle, ' Name ideas'), el('small', {}, `Names that match ${files.length > 1 ? 'these patterns' : patternLabel(files[0] || '')}`)),
+          el('button', { class: 'btn small primary', type: 'button', disabled: state.ideasLoading, onclick: () => fetchIdeas(false) },
+            state.ideasLoading ? 'Thinking…' : 'Suggest names')));
+    }
+    const fill = el('button', {
+      class: 'link', type: 'button',
+      onclick: () => {
+        const list = collars();
+        list.forEach((c, i) => { if (ideas.names[i]) state.decision.listing.collars[c.index].name = ideas.names[i]; });
+        renderNames(); changed(); setStatus('Names added to all collars', 'ok');
+      },
+    }, `Use the first ${Math.min(collars().length, ideas.names.length)} on all collars`);
+    return el('div', { class: 'ideas' },
+      el('div', { class: 'ideas-head' },
+        el('div', {}, el('strong', {}, sparkle, ' Name ideas'), el('small', {}, ideas.theme ? `${ideas.theme}${ideas.source === 'list' ? '' : ' · AI'}` : '')),
+        el('button', { class: 'btn small', type: 'button', disabled: state.ideasLoading, onclick: () => fetchIdeas(true) },
+          state.ideasLoading ? 'Thinking…' : 'More ideas')),
+      el('div', { class: 'idea-chips' }, ideas.names.map((n) => el('button', {
+        class: 'idea', type: 'button', title: `Put "${n}" on the ${target.short} collar`,
+        onclick: () => useName(n, ideaTarget().index),
+      }, n))),
+      el('p', { class: 'idea-hint', id: 'ideaHint' }, `Tap a name to put it on the `, el('b', {}, `${target.short} collar`), ' · ', fill));
+  }
 
   /* ---------------- 4. background ---------------- */
   function currentBgId() {

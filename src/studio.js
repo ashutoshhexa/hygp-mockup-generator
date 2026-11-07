@@ -8,6 +8,7 @@
  *   /api/templates/:id      GET / POST (save geometry from the editor)
  *   /api/engraving.png      engraving raster (name, phone, font, phoneFont, w), same code path as export
  *   /api/phone              a random 419-555-XXXX number
+ *   /api/name-ideas         dog-name ideas that match the patterns (Claude if ANTHROPIC_API_KEY is set)
  *   /api/background.png     background plate preset
  *   /api/decision           POST: save the working decision
  *   /api/export             POST: render all frames at full size into out/listings/
@@ -23,11 +24,17 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 
+// local secrets (ANTHROPIC_API_KEY) from .env / .env.local, which git ignores; Vercel sets env vars itself
+for (const f of ['.env', '.env.local']) {
+  try { process.loadEnvFile(path.join(__dirname, '..', f)); } catch { /* missing: fine */ }
+}
+
 const { fromRoot, ON_VERCEL } = require('./paths');
 const { FINISHES, decideListing } = require('./decide');
 const { rasterizeEngraving, randomPhone } = require('./engraving');
 const { fontList, warmFonts, resolveFontName, PHONE_FONT, DEFAULT_FONT } = require('./fonts');
 const catalog = require('./catalog');
+const { suggestNames } = require('./name-ideas');
 const { listPresets } = require('./background');
 const { renderListing, readTemplate, readJson, backgroundPng } = require('./mockup/node-io');
 
@@ -140,6 +147,21 @@ function readBody(req, limit = 40 * 1024 * 1024) {
     });
     req.on('error', reject);
   });
+}
+
+// Name ideas call a paid API: at most 20 per visitor per minute (real use is a few clicks).
+// Kept in memory, so it is per server instance; the Anthropic spend limit is the hard cap.
+const NAME_IDEAS_PER_MIN = 20;
+const nameIdeasHits = new Map();
+function allowNameIdeas(req) {
+  const ip = String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim() || 'unknown';
+  const now = Date.now();
+  const recent = (nameIdeasHits.get(ip) || []).filter((t) => now - t < 60000);
+  if (recent.length >= NAME_IDEAS_PER_MIN) { nameIdeasHits.set(ip, recent); return false; }
+  recent.push(now);
+  nameIdeasHits.set(ip, recent);
+  if (nameIdeasHits.size > 5000) for (const [k, v] of nameIdeasHits) if (!v.some((t) => now - t < 60000)) nameIdeasHits.delete(k);
+  return true;
 }
 
 function sendJson(res, status, body) {
@@ -258,6 +280,16 @@ async function handle(req, res) {
     }
 
     if (req.method === 'GET' && p === '/api/phone') return sendJson(res, 200, { phone: randomPhone() });
+    // dog-name ideas for the buckles, from the patterns in use (?files=a|b, ?avoid=x,y, ?more=1)
+    if (req.method === 'GET' && p === '/api/name-ideas') {
+      if (!allowNameIdeas(req)) return sendJson(res, 429, { error: 'Too many name requests. Please wait a minute and try again.' });
+      const files = (url.searchParams.get('files') || '').split('|').filter(Boolean).slice(0, 3);
+      const patterns = [...new Set(files)].map((f) => catalog.describePattern(f)
+        || { label: (PATTERN_LABELS[path.basename(f)] || path.basename(f).replace(/\.[^.]+$/, '')), thumb: null, collection: null });
+      const avoid = (url.searchParams.get('avoid') || '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 40);
+      if (!patterns.length) return sendJson(res, 400, { error: 'files is required' });
+      return sendJson(res, 200, await suggestNames(patterns, { avoid, fresh: url.searchParams.get('more') === '1' }));
+    }
 
     if (req.method === 'GET' && p === '/api/background.png') {
       const w = Math.min(4096, Number(url.searchParams.get('w')) || 1024);
