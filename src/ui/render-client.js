@@ -92,6 +92,7 @@
   function engravingUrl(collar) {
     const q = new URLSearchParams({ name: collar.name || '', phone: collar.phone || '', font: collar.font || '' });
     if (collar.phoneFont) q.set('phoneFont', collar.phoneFont);
+    if (collar.line3 && collar.line3.trim()) q.set('line3', collar.line3.trim());
     return `/api/engraving.png?${q}`;
   }
 

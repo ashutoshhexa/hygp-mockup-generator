@@ -263,14 +263,15 @@ async function handle(req, res) {
     if (req.method === 'GET' && p === '/api/engraving.png') {
       const name = url.searchParams.get('name') || '';
       const phone = url.searchParams.get('phone') || '';
+      const line3 = (url.searchParams.get('line3') || '').slice(0, 24); // optional third line
       const font = url.searchParams.get('font') || DEFAULT_FONT;
       const phoneFont = url.searchParams.get('phoneFont') || PHONE_FONT;
       // w: smaller rasters for the font picker tiles; the buckle itself uses the default 1400
       const width = Math.max(120, Math.min(1400, Number(url.searchParams.get('w')) || 1400));
-      const key = `${name}|${phone}|${font}|${phoneFont}|${width}`;
+      const key = `${name}|${phone}|${line3}|${font}|${phoneFont}|${width}`;
       let png = engravingCache.get(key);
       if (!png) {
-        png = await rasterizeEngraving({ name, phone, font, phoneFont, width });
+        png = await rasterizeEngraving({ name, phone, line3, font, phoneFont, width });
         if (!png) { res.writeHead(204); return res.end(); }
         if (engravingCache.size > 600) engravingCache.clear();
         engravingCache.set(key, png);

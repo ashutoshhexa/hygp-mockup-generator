@@ -576,6 +576,7 @@
     const q = new URLSearchParams({
       name: collar.name || 'Name', phone: collar.phone || '', font, phoneFont: linked ? font : collar.phoneFont, w: String(w),
     });
+    if (collar.line3 && collar.line3.trim()) q.set('line3', collar.line3.trim());
     return `/api/engraving.png?${q}`;
   }
 
@@ -605,6 +606,22 @@
       id: `${id}-phone`, type: 'text', value: collar.phone || '', inputmode: 'tel', autocomplete: 'off', placeholder: '419-555-0148',
       oninput: (e) => { collar.phone = e.target.value; changed(); refreshPreviews(); },
     });
+    // optional third line under the phone (production engraves up to 3 lines); empty = left out
+    const line3Input = el('input', {
+      id: `${id}-l3`, type: 'text', value: collar.line3 || '', maxlength: '20', autocomplete: 'off', placeholder: 'e.g. Call My Mom!',
+      oninput: (e) => {
+        collar.line3 = e.target.value;
+        line3ForAll.textContent = collar.line3 ? 'Use on all collars' : 'Clear on all collars';
+        changed(); refreshPreviews();
+      },
+    });
+    const line3ForAll = el('button', {
+      class: 'link', type: 'button',
+      onclick: () => {
+        for (const other of state.decision.listing.collars) other.line3 = collar.line3 || '';
+        renderNames(); changed(); setStatus(collar.line3 ? 'Line 3 copied to all collars' : 'Line 3 cleared on all collars', 'ok');
+      },
+    }, collar.line3 ? 'Use on all collars' : 'Clear on all collars');
     const newNumber = el('button', {
       class: 'btn small icon', type: 'button', title: 'Make up a new 419-555 number', 'aria-label': 'New phone number',
       onclick: async () => {
@@ -645,8 +662,11 @@
       el('div', { class: 'field-row' },
         el('label', { class: 'field grow', for: `${id}-name` }, el('span', {}, 'Pet name'), nameInput),
         el('div', { class: 'field grow phone' }, el('label', { for: `${id}-phone` }, 'Phone number'), el('div', { class: 'inline' }, phoneInput, newNumber))),
+      el('div', { class: 'field' },
+        el('div', { class: 'label-row' }, el('label', { for: `${id}-l3` }, 'Line 3 ', el('small', { class: 'opt' }, 'optional')), line3ForAll),
+        line3Input),
       el('div', { class: 'field' }, el('div', { class: 'label-row' }, el('span', {}, 'Lettering'), sameForAll), current, grid),
-      el('label', { class: 'field', for: `${id}-pf` }, el('span', {}, 'Phone number lettering'), phoneStyle));
+      el('label', { class: 'field', for: `${id}-pf` }, el('span', {}, 'Phone number (and line 3) lettering'), phoneStyle));
     return card;
   }
 

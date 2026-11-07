@@ -3,9 +3,9 @@
 /**
  * Buckle engraving SVG.
  * Layout follows B2B-portal-lambda/src/order/utils/engraving-svg.util.ts
- * (buckle size viewBox, line 1 = 44% of the height, line 2 = 26%, 88% max width,
- * 86% max block height), so a name and phone land on the buckle the way production
- * draws them. Two differences:
+ * (buckle size viewBox; line 1 = 52% of the height alone, 44% + 26% with two lines,
+ * 32% + 20% + 20% with three; 88% max width, 86% max block height), so a name, phone and
+ * optional third line ("Call My Mom!") land on the buckle the way production draws them. Two differences:
  *   - text is drawn as glyph outlines from the storefront font file (fontkit),
  *     so the browser preview and the export are the same and need no font loading;
  *   - widths are measured from the real glyphs instead of estimated, so wide fonts
@@ -54,8 +54,10 @@ function engravingSvg(lines, sizeName = 'MN') {
   const W = dim.viewBoxW, H = dim.viewBoxH;
   const maxW = Math.round(W * 0.88);
   const numLines = rawLines.length;
-  const baseFs1 = Math.round(H * (numLines === 1 ? 0.52 : 0.44));
-  const baseFs2 = Math.round(H * 0.26);
+  // production line sizes (engraving-svg.util.ts): [first line, other lines] by line count
+  const [k1, k2] = numLines === 1 ? [0.52, 0] : numLines === 2 ? [0.44, 0.26] : numLines === 3 ? [0.32, 0.2] : [0.25, 0.17];
+  const baseFs1 = Math.round(H * k1);
+  const baseFs2 = Math.round(H * k2);
 
   const laid = rawLines.map((l, idx) => {
     const run = l.font.layout(l.text);
@@ -68,7 +70,7 @@ function engravingSvg(lines, sizeName = 'MN') {
   });
 
   // production line box: line height = font size, gap = 12% of the second line's size
-  const gap0 = numLines > 1 ? Math.round(laid[1].fs * 0.12) : 0;
+  const gap0 = numLines > 1 ? Math.round(baseFs2 * 0.12) : 0;
   let total = laid.reduce((s, l) => s + l.fs, 0) + (numLines - 1) * gap0;
   const maxH = Math.round(H * 0.86);
   let gap = gap0;
@@ -105,16 +107,23 @@ ${paths.join('\n')}
 </svg>`;
 }
 
-/** Name on line 1 in the chosen font, phone on line 2 (default: Roboto Condensed Bold). */
-async function generateEngravingSvg({ name, phone, font, phoneFont, sizeName = 'MN' }) {
+/**
+ * Name on line 1 in the chosen font, phone on line 2 and the optional line 3 (e.g. "Call My Mom!")
+ * in the phone lettering (default: Roboto Condensed Bold). Empty lines are left out, as in production.
+ */
+async function generateEngravingSvg({ name, phone, line3, font, phoneFont, sizeName = 'MN' }) {
   const [nameFont, numFont] = await Promise.all([loadFont(font), loadFont(phoneFont || PHONE_FONT)]);
-  return engravingSvg([{ text: name, font: nameFont }, { text: formatUsPhone(phone), font: numFont }], sizeName);
+  return engravingSvg([
+    { text: name, font: nameFont },
+    { text: formatUsPhone(phone), font: numFont },
+    { text: line3, font: numFont },
+  ], sizeName);
 }
 
 /** Black-on-transparent PNG, drawn large; the renderer mipmaps it down onto the buckle. */
-async function rasterizeEngraving({ name, phone, font, phoneFont, width = 1400 }) {
+async function rasterizeEngraving({ name, phone, line3, font, phoneFont, width = 1400 }) {
   const { Resvg } = require('@resvg/resvg-js');
-  const svg = await generateEngravingSvg({ name, phone, font, phoneFont });
+  const svg = await generateEngravingSvg({ name, phone, line3, font, phoneFont });
   if (!svg) return null;
   const resvg = new Resvg(svg, { fitTo: { mode: 'width', value: width }, font: { loadSystemFonts: false } });
   return Buffer.from(resvg.render().asPng());

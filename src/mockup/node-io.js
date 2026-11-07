@@ -90,7 +90,7 @@ async function renderFrame({ templateId, template, scale, background = null, mod
   const engravingBySlot = {};
   for (const [slot, collar] of Object.entries(collarBySlot || {})) {
     if (collar && (collar.name || collar.phone)) {
-      const png = await rasterizeEngraving({ name: collar.name, phone: collar.phone, font: collar.font, phoneFont: collar.phoneFont });
+      const png = await rasterizeEngraving({ name: collar.name, phone: collar.phone, line3: collar.line3, font: collar.font, phoneFont: collar.phoneFont });
       if (png) engravingBySlot[slot] = await bufferToRgba(png);
     }
   }
