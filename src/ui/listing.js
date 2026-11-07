@@ -536,8 +536,38 @@
     $('#finishBody').replaceChildren(
       el('p', { class: 'help' }, 'The photo always shows all three buckle colors. Pick the one to feature: it goes on the middle collar, where shoppers look first.'),
       options,
+      shadePicker(),
       el('p', { class: 'label' }, 'Where each color goes'),
       map);
+  }
+
+  // Rose gold shade (Original / Richer 1-4): swaps the baked rose gold plate, for picking a look
+  const SHADE_KEY = 'hygp.rosegoldShade';
+  function plateOptions() {
+    const l = state.template && state.template.layered;
+    return (l && l.metalPlateOptions && l.metalPlateOptions.rosegold) || [];
+  }
+  function applyShade(label) {
+    const o = plateOptions().find((x) => x.label === label);
+    if (o) state.template.layered.metalPlates.rosegold = o.file;
+    return !!o;
+  }
+  function savedShade() {
+    try { return localStorage.getItem(SHADE_KEY); } catch { return null; }
+  }
+  function shadePicker() {
+    const opts = plateOptions();
+    if (!opts.length) return null;
+    const cur = state.template.layered.metalPlates.rosegold;
+    const select = el('select', {
+      class: 'shade-select', 'aria-label': 'Rose gold shade',
+      onchange: () => {
+        if (!applyShade(select.value)) return;
+        try { localStorage.setItem(SHADE_KEY, select.value); } catch { /* private window */ }
+        changed();
+      },
+    }, opts.map((o) => el('option', { value: o.label, selected: o.file === cur }, o.label)));
+    return el('label', { class: 'shade-row' }, el('i', { class: 'metal rosegold' }), el('span', {}, 'Rose gold shade'), select);
   }
 
   /* ---------------- 3. names ---------------- */
@@ -789,6 +819,7 @@
       state.sideOrder = s.frames.sideOrder;
       state.frame = s.frames.frames[0];
       state.template = await api(`/api/templates/${state.frame.template}`);
+      if (savedShade()) applyShade(savedShade());
       const names = state.fonts.map((f) => f.name);
       for (const c of state.decision.listing.collars) {
         if (names.length && !names.includes(c.font)) c.font = names[0];

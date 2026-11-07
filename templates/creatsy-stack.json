@@ -1687,9 +1687,18 @@
   "threadTint": 0.35,
   "threadOpacity": 0.35,
   "threadSoften": 0.5,
+  "metalPlateOptions": {
+   "rosegold": [
+    { "label": "Blush (original)", "file": "poc/templates/creatsy-stack/metal-rosegold.png" },
+    { "label": "Rose", "file": "poc/templates/creatsy-stack/metal-rosegold-rich.png" },
+    { "label": "Copper Rose", "file": "poc/templates/creatsy-stack/metal-rosegold-rich2.png" },
+    { "label": "Warm Copper", "file": "poc/templates/creatsy-stack/metal-rosegold-rich3.png" },
+    { "label": "Deep Copper", "file": "poc/templates/creatsy-stack/metal-rosegold-rich4.png" }
+   ]
+  },
   "metalPlates": {
    "gold": "poc/templates/creatsy-stack/metal-gold.png",
-   "rosegold": "poc/templates/creatsy-stack/metal-rosegold.png",
+   "rosegold": "poc/templates/creatsy-stack/metal-rosegold-rich.png",
    "silver": "poc/templates/creatsy-stack/metal-silver.png"
   }
  },

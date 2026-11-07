@@ -27,7 +27,7 @@ copyDir(path.join('cache', 'shop'));
 for (const f of ['package.json', 'package-lock.json', 'vercel.json', 'frames.json', path.join('decisions', 'christmas-gingerbread.json')]) copyFile(f);
 
 const hero = JSON.parse(fs.readFileSync(path.join(ROOT, 'templates', 'creatsy-stack.json'), 'utf8'));
-for (const f of new Set([hero.base, hero.layered.below, hero.layered.bin, ...Object.values(hero.layered.metalPlates || {})])) copyFile(f);
+for (const f of new Set([hero.base, hero.layered.below, hero.layered.bin, ...Object.values(hero.layered.metalPlates || {}), ...Object.values(hero.layered.metalPlateOptions || {}).flat().map((o) => o.file)])) copyFile(f);
 
 if (keepVercelLink) { fs.mkdirSync(path.join(OUT, '.vercel'), { recursive: true }); fs.writeFileSync(path.join(OUT, '.vercel', 'project.json'), keepVercelLink); }
 console.log('staged in .deploy/');
