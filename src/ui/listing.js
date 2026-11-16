@@ -843,7 +843,7 @@
       const names = state.fonts.map((f) => f.name);
       for (const c of state.decision.listing.collars) {
         if (names.length && !names.includes(c.font)) c.font = names[0];
-        if (!c.phoneFont) c.phoneFont = s.phoneFont; // what the buckle uses when none is set
+        if (!c.phoneFont) c.phoneFont = c.font; // default: phone (and line 3) in the same lettering as the name
         if (names.length && !names.includes(c.phoneFont)) c.phoneFont = c.font;
       }
       const l = state.decision.listing;
