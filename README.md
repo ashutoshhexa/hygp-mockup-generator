@@ -6,6 +6,17 @@ Each image starts from a fixed template photo, and code applies the real pattern
 **The model never draws product pixels.** Its only job is to return the decision JSON (names, phones, fonts,
 center finish, background), and, optionally, an empty background image with no product in it.
 
+## Set up (from a fresh clone)
+
+```
+npm install
+npm run studio      # http://127.0.0.1:4173/listing
+```
+
+- Needs **Node 20.12 or newer** and internet access on the first run (storefront fonts and pattern lists are downloaded into `cache/`, which is git-ignored).
+- The main photo needs `poc/templates/creatsy-stack/layers.bin` (49 MB). It is committed: it was built from the layered PSD, which stays local (`*.psd`, 670 MB). Only re-run `import-psd.js` (see below) if the PSD changes.
+- Optional: AI dog-name ideas need `ANTHROPIC_API_KEY=...` in a git-ignored `.env` file. Without it the Names panel uses built-in themed lists. Never commit the key.
+
 ## Run
 
 ```

@@ -4,9 +4,8 @@ node_modules/
 out/
 poc/out/
 
-# source PSDs are huge; layers.bin is rebuilt from the PSD by src/tools/import-psd.js
+# source PSDs are huge (670 MB) and stay local; the layers.bin built from them IS committed, so a clone can run
 *.psd
-poc/templates/*/layers.bin
 
 # working state written by the Studio
 decisions/preview.json
