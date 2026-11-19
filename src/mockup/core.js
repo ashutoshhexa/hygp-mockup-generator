@@ -727,7 +727,7 @@
     for (let y = 0; y < h - 1; y += 5) for (let x = 0; x < w - 1; x += 5) {
       const i = y * w + x;
       if (A[i] < 250 || A[i + 1] < 250 || A[i + w] < 250) continue;
-      dudx += (UV[i + 1] - UV[i]) / op.uv.su; dvdy += (UV[n + i + w] - UV[n + i]) / op.uv.sv; vs += UV[n + i] / op.uv.sv; c++;
+      dudx += (UV[i + 1] - UV[i]) / op.uv.su; dvdy += (UV[n + i + w] - UV[n + i]) / op.uv.sv; vs += UV[n + i] / op.uv.sv - (op.uv.v0 || 0); c++;
     }
     const r = c && dvdy ? { shear: (-Math.tan((op.tilt * Math.PI) / 180) * dudx) / dvdy, vMid: vs / c } : { shear: 0, vMid: 0 };
     tiltMemo.set(key, r);
@@ -1089,10 +1089,11 @@
         // op.tilt (degrees): lean the print on this piece so stripes across the strap run
         // parallel to its stitching (a shear of u by v, about the piece's middle)
         const { shear, vMid } = tiltFor(op, UV, A);
+        const v0 = op.uv.v0 || 0; // stored shifted when the print runs past the strip's edge
         each(op.alpha, (k, i) => {
           const a = (A[i] / 255) * opac;
           if (a <= 0) return;
-          const v = UV[n + i] / op.uv.sv, u = UV[i] / op.uv.su + shear * (v - vMid);
+          const v = UV[n + i] / op.uv.sv - v0, u = UV[i] / op.uv.su + shear * (v - vMid);
           sampleWrap(img, u * ku, v * ku, tmp);
           R[k] += (tmp[0] / 255 - R[k]) * a; G[k] += (tmp[1] / 255 - G[k]) * a; B[k] += (tmp[2] / 255 - B[k]) * a;
         });
@@ -1103,7 +1104,7 @@
           for (let h = 0; h < holes.idx.length; h++) {
             const i = holes.idx[h], a = holes.a[h] * opac;
             const k = (((i / bw) | 0) + op.alpha.y - ry0) * RW + (i % bw) + op.alpha.x - rx0;
-            const v = UV[n + i] / op.uv.sv, u = UV[i] / op.uv.su + shear * (v - vMid);
+            const v = UV[n + i] / op.uv.sv - v0, u = UV[i] / op.uv.su + shear * (v - vMid);
             sampleWrap(img, u * ku, v * ku, tmp);
             R[k] += (tmp[0] / 255 - R[k]) * a; G[k] += (tmp[1] / 255 - G[k]) * a; B[k] += (tmp[2] / 255 - B[k]) * a;
           }

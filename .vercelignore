@@ -5,6 +5,7 @@ legacy
 .git
 .claude
 decisions/preview.json
+decisions/preview-single.json
 decisions/.validate.json
 
 # working files (700 MB of PSDs and bakes): only the hero's files are needed

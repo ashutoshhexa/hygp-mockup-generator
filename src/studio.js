@@ -3,6 +3,7 @@
 /**
  * Listing Studio server.
  *   /listing       client page: the main Etsy photo only, with a download button
+ *   /single-collar same page on the one-collar PSD (templates/single-collar.json), own saved design
  *   /              Studio UI (listing preview + template editor)
  *   /api/state     patterns, templates, frames, current decision, presets
  *   /api/templates/:id      GET / POST (save geometry from the editor)
@@ -43,6 +44,8 @@ const PORT = Number(process.env.PORT) || 4173;
 // Rendering happens in the visitor's browser; the server only serves data and lettering.
 const READ_ONLY = ON_VERCEL;
 const WORKING_DECISION = fromRoot('decisions', 'preview.json');
+// pages with their own working design (?page=single): /single-collar must not overwrite /listing's
+const workingDecision = (page) => (page === 'single' ? fromRoot('decisions', 'preview-single.json') : WORKING_DECISION);
 const DEFAULT_DECISION = fromRoot('decisions', 'christmas-gingerbread.json');
 
 const PATTERN_LABELS = {
@@ -97,8 +100,9 @@ function listBackgroundFiles() {
     .map((n) => ({ file: `poc/backgrounds/${n}`, label: n.replace(/\.[^.]+$/, '') }));
 }
 
-function currentDecision() {
-  const file = fs.existsSync(WORKING_DECISION) ? WORKING_DECISION : DEFAULT_DECISION;
+function currentDecision(page) {
+  const working = workingDecision(page);
+  const file = fs.existsSync(working) ? working : DEFAULT_DECISION;
   const decision = JSON.parse(fs.readFileSync(file, 'utf8'));
   // older decisions named Windows fonts; map them onto the storefront list
   for (const c of (decision.listing && decision.listing.collars) || []) {
@@ -115,8 +119,8 @@ function currentDecision() {
 }
 
 // Live site: the default design must use a store pattern (local poc/patterns are not deployed).
-async function liveDecision() {
-  const decision = currentDecision();
+async function liveDecision(page) {
+  const decision = currentDecision(page);
   const isStore = (f) => f && (f.startsWith('cache/patterns/') || f.startsWith('cache/legacy/')) && f.endsWith('.png');
   if (!READ_ONLY || (isStore(decision.patternFile) && (decision.collarPatterns || []).every((f) => !f || isStore(f)))) return decision;
   const collections = await catalog.listCollections();
@@ -208,7 +212,7 @@ async function handle(req, res) {
       if (req.method === 'POST' && p === '/api/decision') return sendJson(res, 200, { ok: true });
     }
     if (req.method === 'GET' && (p === '/' || p === '/index.html')) return sendFile(res, path.join(__dirname, 'ui', 'index.html'));
-    if (req.method === 'GET' && (p === '/listing' || p === '/listing/')) return sendFile(res, path.join(__dirname, 'ui', 'listing.html'));
+    if (req.method === 'GET' && /^\/(listing|single-collar)\/?$/.test(p)) return sendFile(res, path.join(__dirname, 'ui', 'listing.html'));
     if (req.method === 'GET' && p.startsWith('/ui/')) {
       const f = safeJoin(path.join(__dirname, 'ui'), p.slice(4));
       return f ? sendFile(res, f) : sendJson(res, 400, { error: 'bad path' });
@@ -241,7 +245,7 @@ async function handle(req, res) {
         patterns: listPatterns(),
         templates: listTemplates(),
         frames: readJson('frames.json'),
-        decision: await liveDecision(),
+        decision: await liveDecision(url.searchParams.get('page')),
         finishes: FINISHES,
         fonts: fontList().map((f) => ({ name: f.name, preview: f.preview })),
         phoneFont: PHONE_FONT,
@@ -309,7 +313,7 @@ async function handle(req, res) {
     if (req.method === 'POST' && p === '/api/decision') {
       const body = await readBody(req);
       validateDecision(body);
-      fs.writeFileSync(WORKING_DECISION, JSON.stringify(body, null, 2));
+      fs.writeFileSync(workingDecision(url.searchParams.get('page')), JSON.stringify(body, null, 2));
       return sendJson(res, 200, { ok: true });
     }
 

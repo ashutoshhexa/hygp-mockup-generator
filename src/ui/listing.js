@@ -32,6 +32,13 @@
   };
   const patternLabels = new Map();
 
+  // /single-collar: the same studio on the one-collar PSD (templates/single-collar.json), with its
+  // own saved design. Everything below adapts to the template's slot count, not to the route.
+  const PAGE = /^\/single-collar\/?$/.test(location.pathname)
+    ? { id: 'single', frame: { id: 'single', label: 'Main photo', template: 'single-collar', background: 'decision' } }
+    : null;
+  const pageQuery = PAGE ? `?page=${PAGE.id}` : '';
+
   /* ---------------- api / status ---------------- */
   async function api(path, body) {
     const res = await fetch(path, body === undefined ? {} : {
@@ -58,6 +65,7 @@
       .filter((s) => s.collar != null)
       .map((s) => ({ index: s.collar, label: s.label, short: s.label.replace(/ collar$/i, ''), role: s.role, finish: roles[s.role] }));
   }
+  const single = () => collars().length === 1;
 
   /* ---------------- render ---------------- */
   let inFlight = 0;
@@ -111,7 +119,7 @@
     updateSummaries();
     clearTimeout(saveTimer);
     saveTimer = setTimeout(async () => {
-      try { await api('/api/decision', state.decision); } catch (err) { setStatus(err.message, 'err'); }
+      try { await api(`/api/decision${pageQuery}`, state.decision); } catch (err) { setStatus(err.message, 'err'); }
     }, 700);
   }
 
@@ -507,7 +515,7 @@
     }));
     $('#patternBody').replaceChildren(...[
       sourceSwitch,
-      el('div', { class: 'field' }, el('span', {}, 'Change'), el('div', { class: 'apply-row', id: 'applyRow' })),
+      single() ? null : el('div', { class: 'field' }, el('span', {}, 'Change'), el('div', { class: 'apply-row', id: 'applyRow' })),
       legacy
         ? el('label', { class: 'field' }, el('span', {}, 'Search'), search)
         : el('div', { class: 'field-row' },
@@ -533,6 +541,12 @@
     const map = el('ol', { class: 'collar-map' }, collars().map((c) => el('li', { class: c.role === 'center' ? 'feat' : '' },
       el('span', { class: 'pos' }, c.label), el('span', { class: 'line' }), el('i', { class: `metal ${c.finish}` }), el('strong', {}, FIN_LABEL[c.finish]),
       c.role === 'center' ? el('em', {}, 'Featured') : null)));
+    if (single()) {
+      options.setAttribute('aria-label', 'Buckle color');
+      options.querySelectorAll('small').forEach((s, i) => { s.textContent = MockupPlan.FINISHES[i] === center ? '✓ Selected' : 'Use this'; });
+      $('#finishBody').replaceChildren(...[el('p', { class: 'help' }, 'Pick the buckle and hardware color.'), options, shadePicker()].filter(Boolean));
+      return;
+    }
     $('#finishBody').replaceChildren(
       el('p', { class: 'help' }, 'The photo always shows all three buckle colors. Pick the one to feature: it goes on the middle collar, where shoppers look first.'),
       options,
@@ -663,16 +677,16 @@
         el('label', { class: 'field grow', for: `${id}-name` }, el('span', {}, 'Pet name'), nameInput),
         el('div', { class: 'field grow phone' }, el('label', { for: `${id}-phone` }, 'Phone number'), el('div', { class: 'inline' }, phoneInput, newNumber))),
       el('div', { class: 'field' },
-        el('div', { class: 'label-row' }, el('label', { for: `${id}-l3` }, 'Line 3 ', el('small', { class: 'opt' }, 'optional')), line3ForAll),
+        el('div', { class: 'label-row' }, el('label', { for: `${id}-l3` }, 'Line 3 ', el('small', { class: 'opt' }, 'optional')), single() ? null : line3ForAll),
         line3Input),
-      el('div', { class: 'field' }, el('div', { class: 'label-row' }, el('span', {}, 'Lettering'), sameForAll), current, grid),
+      el('div', { class: 'field' }, el('div', { class: 'label-row' }, el('span', {}, 'Lettering'), single() ? null : sameForAll), current, grid),
       el('label', { class: 'field', for: `${id}-pf` }, el('span', {}, 'Phone number (and line 3) lettering'), phoneStyle));
     return card;
   }
 
   function renderNames() {
     $('#namesBody').replaceChildren(
-      el('p', { class: 'help' }, 'Made-up names and 419-555 numbers, laser engraved on each buckle. The lettering previews use your pet name.'),
+      el('p', { class: 'help' }, `Made-up names and 419-555 numbers, laser engraved on ${single() ? 'the' : 'each'} buckle. The lettering previews use your pet name.`),
       nameIdeas(),
       ...collars().map(nameCard));
   }
@@ -747,7 +761,9 @@
         class: 'idea', type: 'button', title: `Put "${n}" on the ${target.short} collar`,
         onclick: () => useName(n, ideaTarget().index),
       }, n))),
-      el('p', { class: 'idea-hint', id: 'ideaHint' }, `Tap a name to put it on the `, el('b', {}, `${target.short} collar`), ' · ', fill));
+      single()
+        ? el('p', { class: 'idea-hint' }, 'Tap a name to put it on the collar')
+        : el('p', { class: 'idea-hint', id: 'ideaHint' }, `Tap a name to put it on the `, el('b', {}, `${target.short} collar`), ' · ', fill));
   }
 
   /* ---------------- 4. background ---------------- */
@@ -780,7 +796,7 @@
       el('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', onchange: uploadBg }),
       el('span', {}, '+ Upload your own background'));
     $('#bgBody').replaceChildren(...[
-      el('p', { class: 'help' }, 'An empty surface behind the collars. Their real shadows are kept.'),
+      el('p', { class: 'help' }, single() ? 'An empty surface behind the collar. Its real shadow is kept.' : 'An empty surface behind the collars. Their real shadows are kept.'),
       el('div', { class: 'bg-group' }, el('p', { class: 'label' }, 'Original'),
         el('div', { class: 'bg-grid' }, chip('preset:photo', 'Studio photo', 'background:linear-gradient(170deg,#ffffff,#f1f0ee 60%,#e4e2df)', () => { delete l.backgroundFile; l.backgroundPreset = 'photo'; }))),
       ...groups.map((g) => el('div', { class: 'bg-group' }, el('p', { class: 'label' }, g),
@@ -809,11 +825,12 @@
     const d = state.decision;
     const pat = d.collarPatterns ? 'Mixed patterns' : patternLabel(d.patternFile);
     $('#sumPattern').textContent = pat;
-    $('#sumFinish').textContent = `${FIN_LABEL[d.listing.centerColor]} featured`;
-    $('#sumNames').textContent = d.listing.collars.map((c) => c.name).filter(Boolean).join(' · ');
+    const finishText = `${FIN_LABEL[d.listing.centerColor]} ${single() ? 'buckle' : 'featured'}`;
+    $('#sumFinish').textContent = finishText;
+    $('#sumNames').textContent = collars().map((c) => d.listing.collars[c.index].name).filter(Boolean).join(' · ');
     $('#sumBg').textContent = bgLabel();
     $('#facts').replaceChildren(
-      el('span', { class: 'fact' }, el('i', { class: `metal ${d.listing.centerColor}` }), `${FIN_LABEL[d.listing.centerColor]} featured`),
+      el('span', { class: 'fact' }, el('i', { class: `metal ${d.listing.centerColor}` }), finishText),
       el('span', { class: 'fact' }, pat),
       el('span', { class: 'fact' }, bgLabel()),
       el('span', { class: 'fact dim' }, 'Downloads square or original'));
@@ -828,7 +845,7 @@
   async function init() {
     try {
       wireCompare();
-      const s = await api('/api/state');
+      const s = await api(`/api/state${pageQuery}`);
       state.decision = s.decision;
       state.fonts = s.fonts;
       state.phoneFont = s.phoneFont;
@@ -837,8 +854,16 @@
       state.localPatterns = s.patterns;
       state.localPatterns.forEach((p) => patternLabels.set(p.file, p.label));
       state.sideOrder = s.frames.sideOrder;
-      state.frame = s.frames.frames[0];
+      state.frame = PAGE ? PAGE.frame : s.frames.frames[0];
       state.template = await api(`/api/templates/${state.frame.template}`);
+      if (single()) {
+        // one collar: no per-collar overrides, the shared pattern and size are the collar's
+        delete state.decision.collarPatterns;
+        delete state.decision.collarPatternScales;
+        document.title = 'Single collar photo · Listing Studio';
+        $('.dl-form .help').textContent = 'Choose the shape. Nothing is stretched. The square version is framed close on the collar, so the name stays readable in small thumbnails.';
+      }
+      $('#origSize').textContent = `${state.template.width} × ${state.template.height} px`;
       if (savedShade()) applyShade(savedShade());
       const names = state.fonts.map((f) => f.name);
       for (const c of state.decision.listing.collars) {

@@ -11,7 +11,13 @@
  *   2. transform - the 4 corners (TL, TR, BR, BL) the content bounds land on, i.e. a
  *                  perspective (homography) map from the bounds rectangle to that quad.
  * forward(u, v) gives the document position of content pixel (u, v).
+ *
+ * Which content rectangle the transform corners frame is not the same in every PSD, nor for
+ * every layer of one PSD: 'mesh' = the warp's control-point box (all of the Creatsy stack),
+ * 'bounds' = the content bounds, 'union' = both, 'surface' = the warped surface's own box.
+ * import-psd.js tries each per layer and keeps the one that matches Photoshop's composite.
  */
+const FRAMES = ['mesh', 'bounds', 'union', 'surface'];
 
 function homography(src, dst) {
   // solve the 8 unknowns mapping 4 src points to 4 dst points
@@ -51,7 +57,7 @@ function sliceAt(edges, x) {
   return [i, (x - a) / (b - a || 1)];
 }
 
-function placedMapper(placed) {
+function placedMapper(placed, frame = process.env.WARP_FRAME || 'mesh') {
   const W = placed.width, H = placed.height;
   const w = placed.warp || {};
   const bounds = w.bounds
@@ -84,10 +90,13 @@ function placedMapper(placed) {
       }
       return [x, y];
     };
-    if (process.env.WARP_FRAME !== 'bounds' && process.env.WARP_FRAME !== 'surface') {
+    if (frame === 'mesh') {
       fl = Math.min(...P.map((p) => p.x)); fr = Math.max(...P.map((p) => p.x));
       ft = Math.min(...P.map((p) => p.y)); fb = Math.max(...P.map((p) => p.y));
-    } else if (process.env.WARP_FRAME === 'surface') {
+    } else if (frame === 'union') {
+      fl = Math.min(bl, ...P.map((p) => p.x)); fr = Math.max(br, ...P.map((p) => p.x));
+      ft = Math.min(bt, ...P.map((p) => p.y)); fb = Math.max(bb, ...P.map((p) => p.y));
+    } else if (frame === 'surface') {
       // bounding box of the warped surface itself (control points can lie outside it)
       fl = fr = ft = fb = NaN;
       const N = 400;
@@ -114,15 +123,17 @@ function placedMapper(placed) {
  * Inverse map by forward tessellation: every output pixel covered by the warped
  * content gets the content (u, v) it shows. Output space = (doc - origin) * scale.
  * Returns {u: Float32Array, v: Float32Array, hit: Uint8Array} sized W x H.
+ * vPad (content px) continues the warp past both long edges of the strip (the Bezier patches
+ * extrapolate smoothly), giving v < 0 or v > height there; 0 keeps to the content.
  */
-function rasterizeUV(mapper, W, H, origin, scale, step = 4) {
+function rasterizeUV(mapper, W, H, origin, scale, step = 4, vPad = 0) {
   const u = new Float32Array(W * H), v = new Float32Array(W * H), hit = new Uint8Array(W * H);
-  const nu = Math.ceil(mapper.width / step), nv = Math.ceil(mapper.height / Math.min(step, mapper.height / 24));
+  const nu = Math.ceil(mapper.width / step), nv = Math.ceil((mapper.height + 2 * vPad) / Math.min(step, mapper.height / 24));
   const pts = [];
   for (let j = 0; j <= nv; j++) {
     const row = [];
     for (let i = 0; i <= nu; i++) {
-      const cu = (mapper.width * i) / nu, cv = (mapper.height * j) / nv;
+      const cu = (mapper.width * i) / nu, cv = -vPad + ((mapper.height + 2 * vPad) * j) / nv;
       const [x, y] = mapper.forward(cu, cv);
       row.push([(x - origin[0]) * scale, (y - origin[1]) * scale, cu, cv]);
     }
@@ -153,4 +164,4 @@ function rasterizeUV(mapper, W, H, origin, scale, step = 4) {
   return { u, v, hit };
 }
 
-module.exports = { homography, placedMapper, rasterizeUV };
+module.exports = { homography, placedMapper, rasterizeUV, FRAMES };

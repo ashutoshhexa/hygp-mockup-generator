@@ -3,7 +3,13 @@
 /**
  * Turn a layered mockup PSD (Creatsy-style) into a "layered" template.
  *
- *   node src/tools/import-psd.js <file.psd> <templateId> [--crop x,y,w,h] [--width 3000]
+ *   node src/tools/import-psd.js <file.psd> <templateId> [--crop x,y,w,h] [--width 3000] [--name "..."]
+ *
+ * --engrave-shift dx,dy moves the engraving slots (output px) when the PSD's hidden
+ * "Design: buckle (engraved)" layer was never lined up with the buckle face.
+ *
+ * Single-collar PSDs (layers named "Color: fabric", "Color: buckles", no "/collar N") become
+ * one slot, "collar" (collar 0, centre role), instead of the three-collar stack.
  *
  * Nothing is traced by hand. The PSD already holds, per collar:
  *   Color: collar N            - the webbing silhouette (clip base / fills)
@@ -22,7 +28,7 @@ const crypto = require('crypto');
 const sharp = require('sharp');
 const { readPsd, initializeCanvas } = require('ag-psd');
 const { fromRoot } = require('../paths');
-const { placedMapper, rasterizeUV } = require('./psd-warp');
+const { placedMapper, rasterizeUV, FRAMES } = require('./psd-warp');
 
 initializeCanvas(() => { throw new Error('canvas not needed'); }, (w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }));
 
@@ -42,6 +48,7 @@ const SLOTS = {
   2: { slot: 'middle', label: 'Middle collar', role: 'center', collar: 1 },
   3: { slot: 'bottom', label: 'Bottom collar', role: 'right', collar: 2 },
 };
+const SINGLE = { slot: 'collar', label: 'Collar', role: 'center', collar: 0 };
 
 const t0 = Date.now();
 const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
@@ -162,17 +169,24 @@ async function main() {
     seen.set(key, ref);
     return ref;
   }
-  // content UV, packed as two u16 planes
+  // content UV, packed as two u16 planes. v may run past the strip (see edgeFill): then it is
+  // stored shifted by v0 and the renderer subtracts it again
   function putUV(uv, box, cw, chh) {
-    const su = Math.floor(65535 / cw), sv = Math.floor(65535 / chh);
+    let vmin = 0, vmax = chh;
+    for (let y = 0; y < box.h; y++) for (let x = 0; x < box.w; x++) {
+      const i = (y + box.y) * OW + x + box.x;
+      if (uv.hit[i]) { vmin = Math.min(vmin, uv.v[i]); vmax = Math.max(vmax, uv.v[i]); }
+    }
+    const v0 = Math.ceil(-vmin);
+    const su = Math.floor(65535 / cw), sv = Math.floor(65535 / (Math.ceil(vmax) + v0));
     const n = box.w * box.h;
     const b = new Uint16Array(n * 2);
     for (let y = 0; y < box.h; y++) for (let x = 0; x < box.w; x++) {
       const i = (y + box.y) * OW + x + box.x, k = y * box.w + x;
       b[k] = Math.round(Math.max(0, Math.min(cw, uv.u[i])) * su);
-      b[n + k] = Math.round(Math.max(0, Math.min(chh, uv.v[i])) * sv);
+      b[n + k] = Math.round(Math.max(0, Math.min(vmax + v0, uv.v[i] + v0)) * sv);
     }
-    return { ...box, type: 'uv16', su, sv, offset: put(b, 2) };
+    return { ...box, type: 'uv16', su, sv, ...(v0 ? { v0 } : {}), offset: put(b, 2) };
   }
   // give every covered pixel a UV, even where the tessellation just missed it
   function fillUV(uv, alpha) {
@@ -197,9 +211,105 @@ async function main() {
     }
   }
 
+  /* ---------- frame choice for warped pieces (see section 2) ---------- */
+  const coverage = (r, a, box) => {
+    let need = 0, got = 0;
+    for (let y = box.y; y < box.y + box.h; y++) for (let x = box.x; x < box.x + box.w; x++) {
+      const i = y * OW + x;
+      need += a[i]; if (r.hit[i]) got += a[i];
+    }
+    return got / (need || 1);
+  };
+  // a smart object's own pixels (its embedded .psb), as darkness 0..1
+  const contentMemo = new Map();
+  function linkedContent(id) {
+    if (contentMemo.has(id)) return contentMemo.get(id);
+    let out = null;
+    const f = (psd.linkedFiles || []).find((x) => x.id === id);
+    if (f && f.data) {
+      try {
+        const q = readPsd(Buffer.from(f.data), { useImageData: true, skipThumbnail: true });
+        const img = (q.children || []).map((c) => c.imageData).find(Boolean) || q.imageData;
+        if (img) {
+          const d = img.data, dark = new Float32Array(img.width * img.height);
+          for (let i = 0; i < dark.length; i++) {
+            const j = i * 4;
+            dark[i] = (d[j + 3] / 255) * (1 - (0.3 * d[j] + 0.59 * d[j + 1] + 0.11 * d[j + 2]) / 255);
+          }
+          out = { w: img.width, h: img.height, dark };
+        }
+      } catch (err) { log('  embedded content unreadable:', err.message); }
+    }
+    contentMemo.set(id, out);
+    return out;
+  }
+  // Photoshop's composite at output size, as darkness
+  let compDark = null;
+  async function compositeDark() {
+    if (compDark) return compDark;
+    const c = psd.imageData;
+    const g = await sharp(Buffer.from(c.data.buffer, c.data.byteOffset, c.data.byteLength), { raw: { width: c.width, height: c.height, channels: 4 } })
+      .extract({ left: CX, top: CY, width: CW, height: CH }).resize(OW, OH, { kernel: 'lanczos3' }).removeAlpha().greyscale().raw().toBuffer();
+    compDark = new Float32Array(OW * OH);
+    for (let i = 0; i < compDark.length; i++) compDark[i] = 1 - g[i] / 255;
+    return compDark;
+  }
+  // box blur (radius r, clamped at the edges)
+  function boxBlur2(src, w, h, r) {
+    const tmp = new Float32Array(w * h), out = new Float32Array(w * h);
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let acc = 0, c = 0;
+      for (let k = Math.max(0, x - r); k <= Math.min(w - 1, x + r); k++) { acc += src[y * w + k]; c++; }
+      tmp[y * w + x] = acc / c;
+    }
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+      let acc = 0, c = 0;
+      for (let k = Math.max(0, y - r); k <= Math.min(h - 1, y + r); k++) { acc += tmp[k * w + x]; c++; }
+      out[y * w + x] = acc / c;
+    }
+    return out;
+  }
+  // normalised correlation, over the piece, of our drawing and Photoshop's. High-passed, so
+  // lighting and shading do not count, only the print's own lines.
+  async function matchComposite(r, a, box, content) {
+    const ref = await compositeDark();
+    const ours = new Float32Array(box.w * box.h), theirs = new Float32Array(box.w * box.h);
+    for (let y = 0; y < box.h; y++) for (let x = 0; x < box.w; x++) {
+      const i = (y + box.y) * OW + x + box.x, k = y * box.w + x;
+      theirs[k] = ref[i];
+      if (!r.hit[i]) continue;
+      const u = Math.min(content.w - 1, Math.max(0, Math.floor(r.u[i]))), v = Math.min(content.h - 1, Math.max(0, Math.floor(r.v[i])));
+      ours[k] = content.dark[v * content.w + u];
+    }
+    const bo = boxBlur2(ours, box.w, box.h, 6), bt = boxBlur2(theirs, box.w, box.h, 6);
+    let ab = 0, aa = 0, bb = 0;
+    for (let k = 0; k < ours.length; k++) {
+      const wgt = a[(((k / box.w) | 0) + box.y) * OW + (k % box.w) + box.x];
+      const A = ours[k] - bo[k], B = theirs[k] - bt[k];
+      ab += wgt * A * B; aa += wgt * A * A; bb += wgt * B * B;
+    }
+    return ab / Math.sqrt(aa * bb + 1e-12);
+  }
+  // Fabric the warped content does not reach (a Puppet Warp smart filter, which is not
+  // reproduced, can move a piece by a fraction of the strap): continue the same warp past the
+  // strip's long edges, so the print carries on with the piece's own geometry instead of the
+  // edge row being smeared across the gap.
+  function edgeFill(uv, mapper, a, box) {
+    const ext = rasterizeUV(mapper, OW, OH, [CX, CY], s, 3, mapper.height * 0.6);
+    let filled = 0;
+    for (let y = box.y; y < box.y + box.h; y++) for (let x = box.x; x < box.x + box.w; x++) {
+      const i = y * OW + x;
+      if (a[i] > 0 && !uv.hit[i] && ext.hit[i]) { uv.u[i] = ext.u[i]; uv.v[i] = ext.v[i]; uv.hit[i] = 1; filled++; }
+    }
+    if (filled) log(`  continued the warp over ${filled} px past the strip's edges`);
+  }
+
   /* ---------- 1. below: background group + drop shadow, baked at output res ---------- */
   const objectGroup = all.find((e) => e.l.name === 'Object' && e.l.children);
-  const baseEntry = all.find((e) => /^Color: collar \d/.test(e.l.name) && !e.l.clipping && visible(e));
+  const single = !all.some((e) => /collar \d/.test(e.l.name || ''));
+  const baseRe = single ? /^Color: fabric$/ : /^Color: collar \d/;
+  const baseEntry = all.find((e) => baseRe.test(e.l.name) && !e.l.clipping && visible(e));
+  log(single ? 'single-collar PSD' : 'multi-collar PSD');
   if (!objectGroup || !baseEntry) throw new Error('Not a recognised collar mockup (no Object group / collar base).');
   const below = new Float32Array(OW * OH * 3);
   const bgFill = all.find((e) => e.l.name === 'Color: background');
@@ -259,7 +369,7 @@ async function main() {
   const layers = [];
   const engravings = [];
   const overlay = [];
-  const slotOf = (name) => { const m = /collar (\d)/.exec(name); return m ? SLOTS[Number(m[1])] : null; };
+  const slotOf = (name) => { if (single) return SINGLE; const m = /collar (\d)/.exec(name); return m ? SLOTS[Number(m[1])] : null; };
   const objectEnd = (() => { let k = firstClip; while (k < all.length && all[k].parents.includes(objectGroup.l)) k++; return k; })();
   const overlayGroup = all.find((e) => /^Overlay layers/.test(e.l.name) && e.l.children);
 
@@ -299,7 +409,9 @@ async function main() {
       const a = new Float32Array(OW * OH);
       for (let i = 0; i < a.length; i++) a[i] = uv.hit[i];
       const box = bbox(a);
-      engravings.push({ type: 'engrave', name, slot: slot.slot, mode: l.blendMode, content: [mapper.width, mapper.height], alpha: putU8(a, box), uv: putUV(uv, box, mapper.width, mapper.height) });
+      const [sx, sy] = opt('--engrave-shift', '0,0').split(',').map(Number);
+      const shift = (ref) => ({ ...ref, x: ref.x + sx, y: ref.y + sy });
+      engravings.push({ type: 'engrave', name, slot: slot.slot, mode: l.blendMode, content: [mapper.width, mapper.height], alpha: shift(putU8(a, box)), uv: shift(putUV(uv, box, mapper.width, mapper.height)) });
       log('engraving slot', name);
       continue;
     }
@@ -314,8 +426,23 @@ async function main() {
     if (!box) continue;
     const opacity = (l.opacity == null ? 1 : l.opacity) * (l.fillOpacity == null ? 1 : l.fillOpacity);
     if (l.placedLayer) {
-      const mapper = placedMapper(l.placedLayer);
-      const uv = rasterizeUV(mapper, OW, OH, [CX, CY], s, 3);
+      // The frame the transform corners refer to differs per layer (see psd-warp.js). A wrong
+      // one leaves bands of the strap without print and stretches the rest (which then also
+      // renders blurry). Each candidate is drawn with the PSD's own content and compared with
+      // Photoshop's composite; without that content, the best-covering frame wins.
+      const content = linkedContent(l.placedLayer.id);
+      let best = null;
+      for (const frame of process.env.WARP_FRAME ? [process.env.WARP_FRAME] : FRAMES) {
+        const m = placedMapper(l.placedLayer, frame);
+        const r = rasterizeUV(m, OW, OH, [CX, CY], s, 3);
+        const cover = coverage(r, a, box), match = content ? await matchComposite(r, a, box, content) : 0;
+        const score = content ? match + 0.05 * cover : cover;
+        log(`  frame ${frame}: matches Photoshop ${match.toFixed(3)}, covers ${(cover * 100).toFixed(1)}%`);
+        if (!best || score > best.score + 1e-4) best = { frame, mapper: m, uv: r, cover, score };
+      }
+      const { mapper, uv } = best;
+      log(`  -> ${best.frame}`);
+      if (best.cover < 0.999) edgeFill(uv, mapper, a, box);
       fillUV(uv, a);
       layers.push({ type: 'pattern', name, slot: slot.slot, opacity, content: [mapper.width, mapper.height], alpha: putU8(a, box), uv: putUV(uv, box, mapper.width, mapper.height) });
       log('fabric piece', name, `${box.w}x${box.h}`);
@@ -344,10 +471,10 @@ async function main() {
     .extract({ left: CX, top: CY, width: CW, height: CH }).resize(OW, OH, { kernel: 'lanczos3' }).removeAlpha().png().toFile(path.join(dir, 'photo.png'));
 
   const slots = {};
-  for (const v of Object.values(SLOTS)) slots[v.slot] = { label: v.label, role: v.role, collar: v.collar };
+  for (const v of single ? [SINGLE] : Object.values(SLOTS)) slots[v.slot] = { label: v.label, role: v.role, collar: v.collar };
   const template = {
     id,
-    name: 'Studio stack (Creatsy PSD, 3 collars)',
+    name: opt('--name', single ? `${id} (PSD, 1 collar)` : 'Studio stack (Creatsy PSD, 3 collars)'),
     base: `poc/templates/${id}/photo.png`,
     width: OW,
     height: OH,
@@ -356,7 +483,7 @@ async function main() {
     // new background plates: soften + lift toward studio white, then the baked shadows multiply in
     bgBlur: 6,
     bgLift: 0.2,
-    source: { psd: path.relative(fromRoot(), psdFile).replace(/\\/g, '/'), crop: [CX, CY, CW, CH] },
+    source: { psd: path.relative(fromRoot(), psdFile).replace(/\\/g, '/'), crop: [CX, CY, CW, CH], ...(opt('--engrave-shift') ? { engraveShift: opt('--engrave-shift').split(',').map(Number) } : {}) },
     slots,
     layered: {
       below: `poc/templates/${id}/below.png`,
@@ -373,8 +500,10 @@ async function main() {
   // keep hand-tuned / fitted settings across re-imports (see src/tools/fit-finishes.js)
   const outFile = fromRoot('templates', `${id}.json`);
   if (fs.existsSync(outFile)) {
-    const prev = JSON.parse(fs.readFileSync(outFile, 'utf8')).layered || {};
-    for (const k of ['finishRamps', 'finishRampsSource', 'threadColor', 'threadTint']) if (prev[k]) template.layered[k] = prev[k];
+    const prevTemplate = JSON.parse(fs.readFileSync(outFile, 'utf8'));
+    const prev = prevTemplate.layered || {};
+    for (const k of ['finishRamps', 'finishRampsSource', 'threadColor', 'threadTint', 'threadOpacity', 'threadSoften']) if (prev[k]) template.layered[k] = prev[k];
+    if (prevTemplate.squareCrop) template.squareCrop = prevTemplate.squareCrop;
   }
   fs.writeFileSync(outFile, JSON.stringify(template, null, 1) + '\n');
   log(`wrote templates/${id}.json, ${dir} (layers.bin ${(offset / 1e6).toFixed(1)} MB)`);
