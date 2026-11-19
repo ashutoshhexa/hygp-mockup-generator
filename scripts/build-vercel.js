@@ -28,10 +28,10 @@ function copy(from, to) {
   }
   for (const name of ['core.js', 'plan.js']) copy(`src/mockup/${name}`, `mockup/${name}`);
 
-  // the templates behind /listing (creatsy-stack) and /single-collar (single-collar)
+  // the templates behind /listing (creatsy-stack) and each /single-collar* page (same name)
   const readTpl = (id) => JSON.parse(fs.readFileSync(path.join(ROOT, 'templates', `${id}.json`), 'utf8'));
   const hero = readTpl('creatsy-stack');
-  const files = new Set([hero, readTpl('single-collar')].flatMap((t) => [t.base, t.layered.below, t.layered.bin,
+  const files = new Set([hero, ...['single-collar', 'single-collar-side', 'single-collar-three-quarter'].map(readTpl)].flatMap((t) => [t.base, t.layered.below, t.layered.bin,
     ...Object.values(t.layered.metalPlates || {}), ...Object.values(t.layered.metalPlateOptions || {}).flat().map((o) => o.file)]));
   for (const f of files) copy(f, `files/${f}`);
 

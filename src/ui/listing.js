@@ -32,10 +32,16 @@
   };
   const patternLabels = new Map();
 
-  // /single-collar: the same studio on the one-collar PSD (templates/single-collar.json), with its
-  // own saved design. Everything below adapts to the template's slot count, not to the route.
-  const PAGE = /^\/single-collar\/?$/.test(location.pathname)
-    ? { id: 'single', frame: { id: 'single', label: 'Main photo', template: 'single-collar', background: 'decision' } }
+  // The same studio on other mockups: route -> template, each with its own saved design (?page=).
+  // Everything below adapts to the template's slot count, not to the route.
+  const PAGES = {
+    'single-collar': { id: 'single', template: 'single-collar' }, // one collar, front view
+    'single-collar-side': { id: 'side', template: 'single-collar-side' }, // one collar, side view
+    'single-collar-three-quarter': { id: 'three-quarter', template: 'single-collar-three-quarter' }, // side three-quarter view
+  };
+  const pageDef = PAGES[location.pathname.replace(/^\/|\/$/g, '')];
+  const PAGE = pageDef
+    ? { id: pageDef.id, frame: { id: pageDef.id, label: 'Main photo', template: pageDef.template, background: 'decision' } }
     : null;
   const pageQuery = PAGE ? `?page=${PAGE.id}` : '';
 

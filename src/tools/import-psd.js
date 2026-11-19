@@ -8,7 +8,7 @@
  * --engrave-shift dx,dy moves the engraving slots (output px) when the PSD's hidden
  * "Design: buckle (engraved)" layer was never lined up with the buckle face.
  *
- * Single-collar PSDs (layers named "Color: fabric", "Color: buckles", no "/collar N") become
+ * Single-collar PSDs (base layer "Color: fabric" or "Color: collar", "Color: buckles", no "/collar N") become
  * one slot, "collar" (collar 0, centre role), instead of the three-collar stack.
  *
  * Nothing is traced by hand. The PSD already holds, per collar:
@@ -307,7 +307,7 @@ async function main() {
   /* ---------- 1. below: background group + drop shadow, baked at output res ---------- */
   const objectGroup = all.find((e) => e.l.name === 'Object' && e.l.children);
   const single = !all.some((e) => /collar \d/.test(e.l.name || ''));
-  const baseRe = single ? /^Color: fabric$/ : /^Color: collar \d/;
+  const baseRe = single ? /^Color: (fabric|collar)$/ : /^Color: collar \d/;
   const baseEntry = all.find((e) => baseRe.test(e.l.name) && !e.l.clipping && visible(e));
   log(single ? 'single-collar PSD' : 'multi-collar PSD');
   if (!objectGroup || !baseEntry) throw new Error('Not a recognised collar mockup (no Object group / collar base).');

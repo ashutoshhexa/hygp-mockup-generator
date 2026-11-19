@@ -9,7 +9,7 @@ poc/out/
 
 # working state written by the Studio
 decisions/preview.json
-decisions/preview-single.json
+decisions/preview-*.json
 decisions/.validate.json
 
 poc/backgrounds/_rejected/

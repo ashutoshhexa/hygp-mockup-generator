@@ -4,6 +4,8 @@
  * Listing Studio server.
  *   /listing       client page: the main Etsy photo only, with a download button
  *   /single-collar same page on the one-collar PSD (templates/single-collar.json), own saved design
+ *   /single-collar-side  same again on the side-view PSD (templates/single-collar-side.json)
+ *   /single-collar-three-quarter  same again on the side three-quarter PSD (templates/<route>.json)
  *   /              Studio UI (listing preview + template editor)
  *   /api/state     patterns, templates, frames, current decision, presets
  *   /api/templates/:id      GET / POST (save geometry from the editor)
@@ -44,8 +46,13 @@ const PORT = Number(process.env.PORT) || 4173;
 // Rendering happens in the visitor's browser; the server only serves data and lettering.
 const READ_ONLY = ON_VERCEL;
 const WORKING_DECISION = fromRoot('decisions', 'preview.json');
-// pages with their own working design (?page=single): /single-collar must not overwrite /listing's
-const workingDecision = (page) => (page === 'single' ? fromRoot('decisions', 'preview-single.json') : WORKING_DECISION);
+// pages with their own working design (?page=...), so one mockup's edits never overwrite another's
+const PAGE_DECISIONS = {
+  single: 'preview-single.json',
+  side: 'preview-side.json',
+  'three-quarter': 'preview-three-quarter.json',
+};
+const workingDecision = (page) => (PAGE_DECISIONS[page] ? fromRoot('decisions', PAGE_DECISIONS[page]) : WORKING_DECISION);
 const DEFAULT_DECISION = fromRoot('decisions', 'christmas-gingerbread.json');
 
 const PATTERN_LABELS = {
@@ -212,7 +219,7 @@ async function handle(req, res) {
       if (req.method === 'POST' && p === '/api/decision') return sendJson(res, 200, { ok: true });
     }
     if (req.method === 'GET' && (p === '/' || p === '/index.html')) return sendFile(res, path.join(__dirname, 'ui', 'index.html'));
-    if (req.method === 'GET' && /^\/(listing|single-collar)\/?$/.test(p)) return sendFile(res, path.join(__dirname, 'ui', 'listing.html'));
+    if (req.method === 'GET' && /^\/(listing|single-collar|single-collar-side|single-collar-three-quarter)\/?$/.test(p)) return sendFile(res, path.join(__dirname, 'ui', 'listing.html'));
     if (req.method === 'GET' && p.startsWith('/ui/')) {
       const f = safeJoin(path.join(__dirname, 'ui'), p.slice(4));
       return f ? sendFile(res, f) : sendJson(res, 400, { error: 'bad path' });
