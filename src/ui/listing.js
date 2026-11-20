@@ -25,7 +25,7 @@
 
   const state = {
     decision: null, frame: null, template: null, sideOrder: null,
-    fonts: [], phoneFont: 'Roboto', presets: [], backgroundFiles: [], localPatterns: [],
+    fonts: [], phoneFont: 'Roboto', presets: [], backgroundFiles: [], lifestyle: [], localPatterns: [],
     collections: [], collection: null, patternsBy: new Map(), search: '', loadingPatterns: false, patternError: '',
     applyTo: 'all', // 'all' | collar index: what pattern clicks and the size slider change
     openFonts: new Set(), // collar indexes whose lettering grid is open
@@ -784,7 +784,7 @@
     if (id === 'preset:photo') return 'Studio photo';
     const p = state.presets.find((x) => `preset:${x.id}` === id);
     if (p) return p.label;
-    const f = state.backgroundFiles.find((x) => `file:${x.file}` === id);
+    const f = [...state.lifestyle, ...state.backgroundFiles].find((x) => `file:${x.file}` === id);
     return f ? f.label : '';
   }
 
@@ -807,6 +807,8 @@
         el('div', { class: 'bg-grid' }, chip('preset:photo', 'Studio photo', 'background:linear-gradient(170deg,#ffffff,#f1f0ee 60%,#e4e2df)', () => { delete l.backgroundFile; l.backgroundPreset = 'photo'; }))),
       ...groups.map((g) => el('div', { class: 'bg-group' }, el('p', { class: 'label' }, g),
         el('div', { class: 'bg-grid' }, state.presets.filter((p) => (p.group || 'More') === g).map(presetChip)))),
+      state.lifestyle.length ? el('div', { class: 'bg-group' }, el('p', { class: 'label' }, 'Lifestyle'),
+        el('div', { class: 'bg-grid' }, state.lifestyle.map((b) => chip(`file:${b.file}`, b.label, `background-image:url("/files/${encodeURI(b.thumb)}")`, () => { l.backgroundFile = b.file; })))) : null,
       state.backgroundFiles.length ? el('div', { class: 'bg-group' }, el('p', { class: 'label' }, 'Your uploads'),
         el('div', { class: 'bg-grid' }, state.backgroundFiles.map((b) => chip(`file:${b.file}`, b.label, `background-image:url("/files/${encodeURI(b.file)}")`, () => { l.backgroundFile = b.file; })))) : null,
       upload,
@@ -857,6 +859,7 @@
       state.phoneFont = s.phoneFont;
       state.presets = s.presets;
       state.backgroundFiles = s.backgroundFiles;
+      state.lifestyle = PAGE ? s.lifestyle || [] : []; // lifestyle scenes: the /single-collar* pages only
       state.localPatterns = s.patterns;
       state.localPatterns.forEach((p) => patternLabels.set(p.file, p.label));
       state.sideOrder = s.frames.sideOrder;
@@ -878,7 +881,7 @@
         if (names.length && !names.includes(c.phoneFont)) c.phoneFont = c.font;
       }
       const l = state.decision.listing;
-      if (l.backgroundFile && !state.backgroundFiles.some((b) => b.file === l.backgroundFile)) delete l.backgroundFile;
+      if (l.backgroundFile && ![...state.lifestyle, ...state.backgroundFiles].some((b) => b.file === l.backgroundFile)) delete l.backgroundFile;
       if (l.backgroundPreset && l.backgroundPreset !== 'photo' && !state.presets.some((p) => p.id === l.backgroundPreset)) l.backgroundPreset = 'winter-linen';
       state.collection = 'local';
       renderPattern();

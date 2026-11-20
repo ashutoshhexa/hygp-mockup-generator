@@ -31,7 +31,7 @@ function copy(from, to) {
   // the templates behind /listing (creatsy-stack) and each /single-collar* page (same name)
   const readTpl = (id) => JSON.parse(fs.readFileSync(path.join(ROOT, 'templates', `${id}.json`), 'utf8'));
   const hero = readTpl('creatsy-stack');
-  const files = new Set([hero, ...['single-collar', 'single-collar-side', 'single-collar-three-quarter'].map(readTpl)].flatMap((t) => [t.base, t.layered.below, t.layered.bin,
+  const files = new Set([hero, ...['single-collar', 'single-collar-side', 'single-collar-three-quarter'].map(readTpl)].flatMap((t) => [t.base, t.layered.below, t.layered.bin, ...(t.layered.shade ? [t.layered.shade] : []),
     ...Object.values(t.layered.metalPlates || {}), ...Object.values(t.layered.metalPlateOptions || {}).flat().map((o) => o.file)]));
   for (const f of files) copy(f, `files/${f}`);
 
@@ -42,5 +42,11 @@ function copy(from, to) {
     const png = await paintPreset(p.id, hero.width, hero.height);
     fs.writeFileSync(path.join(OUT, 'bg', `${p.id}.jpg`), await sharp(png).jpeg({ quality: 94, chromaSubsampling: '4:4:4' }).toBuffer());
   }
+  // lifestyle scenes (/single-collar* pages): full size + picker thumbnail, as the Studio serves them
+  const { listLifestyle, lifestyleJpeg } = require('../src/lifestyle');
+  const scenes = listLifestyle().filter((s) => s.source);
+  fs.mkdirSync(path.join(OUT, 'files', 'lifestyle'), { recursive: true });
+  for (const s of scenes) for (const f of [s.file, s.thumb]) fs.writeFileSync(path.join(OUT, 'files', f), await lifestyleJpeg(f));
+  console.log(`public/ ready: ${scenes.length} lifestyle scenes`);
   console.log(`public/ ready: ${files.size} template files, ${listPresets().length} backgrounds (${Date.now() - t0} ms)`);
 })().catch((err) => { console.error(err); process.exit(1); });

@@ -39,6 +39,7 @@ const { fontList, warmFonts, resolveFontName, PHONE_FONT, DEFAULT_FONT } = requi
 const catalog = require('./catalog');
 const { suggestNames } = require('./name-ideas');
 const { listPresets } = require('./background');
+const lifestyle = require('./lifestyle');
 const { renderListing, readTemplate, readJson, backgroundPng } = require('./mockup/node-io');
 
 const PORT = Number(process.env.PORT) || 4173;
@@ -118,7 +119,9 @@ function currentDecision(page) {
   }
   // a background file that was removed from the picker falls back to the default preset
   const l = decision.listing || {};
-  if (l.backgroundFile && !fs.existsSync(fromRoot(l.backgroundFile))) delete l.backgroundFile;
+  if (l.backgroundFile && (lifestyle.isLifestyleFile(l.backgroundFile)
+    ? !lifestyle.listLifestyle().some((s) => s.file === l.backgroundFile)
+    : !fs.existsSync(fromRoot(l.backgroundFile)))) delete l.backgroundFile;
   // store patterns saved as the raw tile now use the store's print framing
   if (decision.patternFile) decision.patternFile = catalog.framedFile(decision.patternFile);
   if (Array.isArray(decision.collarPatterns)) decision.collarPatterns = decision.collarPatterns.map((f) => f && catalog.framedFile(f));
@@ -237,6 +240,11 @@ async function handle(req, res) {
     if (req.method === 'GET' && p === '/api/collections') return sendJson(res, 200, { collections: await catalog.listCollections() });
     const cm = p.match(/^\/api\/collections\/(\d+)\/patterns$/);
     if (req.method === 'GET' && cm) return sendJson(res, 200, { patterns: await catalog.listPatterns(cm[1]) });
+    // lifestyle scenes, converted from "lifestyle images/" on first use (static files on Vercel)
+    if (req.method === 'GET' && p.startsWith('/files/lifestyle/')) {
+      const f = await lifestyle.lifestylePath(p.slice('/files/'.length));
+      return f ? sendFile(res, f, 'max-age=86400') : sendJson(res, 404, { error: 'no such scene' });
+    }
     if (req.method === 'GET' && p.startsWith('/files/')) {
       const f = safeJoin(fromRoot('poc'), p.slice('/files/poc/'.length));
       if (!p.startsWith('/files/poc/') || !f) return sendJson(res, 400, { error: 'bad path' });
@@ -258,6 +266,7 @@ async function handle(req, res) {
         phoneFont: PHONE_FONT,
         presets: listPresets(),
         backgroundFiles: listBackgroundFiles(),
+        lifestyle: lifestyle.listLifestyle().map(({ id, label, file, thumb }) => ({ id, label, file, thumb })),
       });
     }
 

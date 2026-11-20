@@ -13,6 +13,7 @@ const plan = require('./plan');
 const { fromRoot } = require('../paths');
 const { rasterizeEngraving } = require('../engraving');
 const { paintPreset } = require('../background');
+const { isLifestyleFile, lifestylePath } = require('../lifestyle');
 const { ensurePatternFile } = require('../catalog');
 
 const layerCache = new Map();
@@ -37,13 +38,24 @@ function readJson(rel) {
 
 function readTemplate(id) {
   if (!/^[a-z0-9-]+$/i.test(id)) throw new Error(`Bad template id ${id}`);
-  return readJson(path.join('templates', `${id}.json`));
+  const template = readJson(path.join('templates', `${id}.json`));
+  // lifestyle scene placement for this view (scale and position of each scene behind the collar)
+  const lf = path.join('templates', 'lifestyle', `${id}.json`);
+  if (fs.existsSync(fromRoot(lf))) template.lifestyle = readJson(lf);
+  return template;
 }
 
 async function backgroundPng(spec, width, height) {
   if (!spec) return null;
   if (spec.kind === 'file') {
-    return sharp(fromRoot(spec.file)).resize(width, height, { fit: 'cover' }).png().toBuffer();
+    const src = isLifestyleFile(spec.file) ? await lifestylePath(spec.file) : fromRoot(spec.file);
+    if (spec.placement) {
+      const { width: iw, height: ih } = await sharp(src).metadata();
+      const r = plan.placeScene(iw, ih, width, height, spec.placement);
+      const img = await sharp(src).resize(Math.round(r.dw), Math.round(r.dh), { fit: 'fill' }).toBuffer();
+      return sharp(img).extract({ left: Math.round(-r.dx), top: Math.round(-r.dy), width, height }).png().toBuffer();
+    }
+    return sharp(src).resize(width, height, { fit: 'cover' }).png().toBuffer();
   }
   if (spec.kind === 'plain') {
     return sharp({ create: { width, height, channels: 4, background: spec.color || '#f5f3ef' } }).png().toBuffer();

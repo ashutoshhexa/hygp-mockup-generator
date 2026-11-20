@@ -47,7 +47,11 @@
     c.width = w; c.height = h;
     const ctx = c.getContext('2d', { willReadFrequently: true });
     ctx.imageSmoothingQuality = 'high';
-    if (fit === 'cover' && width && height) {
+    if (fit && typeof fit === 'object' && width && height) {
+      // lifestyle scene placement (scale and position), shared with the server via MockupPlan
+      const r = MockupPlan.placeScene(img.naturalWidth, img.naturalHeight, w, h, fit);
+      ctx.drawImage(img, r.dx, r.dy, r.dw, r.dh);
+    } else if (fit === 'cover' && width && height) {
       const s = Math.max(w / img.naturalWidth, h / img.naturalHeight);
       const dw = img.naturalWidth * s, dh = img.naturalHeight * s;
       ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
@@ -61,7 +65,7 @@
 
   /** Ensure an image (at a size) is in the worker cache. Returns its key. */
   function ensurePixels(url, width, height, fit) {
-    const key = `${url}@${width || 'n'}x${height || 'n'}:${fit || 'fill'}`;
+    const key = `${url}@${width || 'n'}x${height || 'n'}:${typeof fit === 'object' && fit ? JSON.stringify(fit) : fit || 'fill'}`;
     if (sentKeys.has(key)) return Promise.resolve(key);
     if (!pixelPromises.has(key)) {
       pixelPromises.set(key, loadImage(url).then((img) => {
@@ -100,7 +104,7 @@
     if (!spec) return Promise.resolve(null);
     let p;
     if (spec.kind === 'plain') p = ensurePlain(spec.color || '#f5f3ef', width, height);
-    else if (spec.kind === 'file') p = ensurePixels(`/files/${spec.file}`, width, height, 'cover');
+    else if (spec.kind === 'file') p = ensurePixels(`/files/${spec.file}`, width, height, spec.placement || 'cover');
     else p = ensurePixels(`/api/background.png?preset=${encodeURIComponent(spec.preset)}&w=${width}&h=${height}`, width, height, 'fill');
     return p.then((key) => { keepRecentBackground(key); return key; });
   }

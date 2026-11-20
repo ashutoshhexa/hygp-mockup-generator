@@ -1,0 +1,70 @@
+{
+ "route": "/single-collar-side",
+ "template": "single-collar-side",
+ "about": "Placement of each lifestyle scene behind this view's collar. The scene covers the 3000x2250 frame, is enlarged by scale (1 = just covers), and the scene point (x, y), 0-1 of the scene image, goes to the frame centre (slid back only as far as needed to keep the frame covered). The collar itself never moves.",
+ "collar": {
+  "surfaceBackEdgeMaxY": 0.47
+ },
+ "scenes": {
+  "oak-table": {
+   "scale": 1,
+   "x": 0.5,
+   "y": 0.5
+  },
+  "travertine": {
+   "scale": 1,
+   "x": 0.5,
+   "y": 0.5
+  },
+  "linen-bench": {
+   "scale": 1,
+   "x": 0.5,
+   "y": 0.5
+  },
+  "stone-tiles": {
+   "scale": 1,
+   "x": 0.5,
+   "y": 0.5
+  },
+  "river-pebbles": {
+   "scale": 1,
+   "x": 0.5,
+   "y": 0.5
+  },
+  "fine-gravel": {
+   "scale": 1,
+   "x": 0.5,
+   "y": 0.5
+  },
+  "sofa-fabric": {
+   "scale": 1.209,
+   "x": 0.5,
+   "y": 0.586
+  },
+  "warm-wood": {
+   "scale": 1.803,
+   "x": 0.5,
+   "y": 0.723
+  },
+  "coastal-sand": {
+   "scale": 1,
+   "x": 0.5,
+   "y": 0.5
+  },
+  "zen-sand-tray": {
+   "scale": 1,
+   "x": 0.5,
+   "y": 0.5
+  },
+  "rustic-wood": {
+   "scale": 1.1,
+   "x": 0.5,
+   "y": 0.545
+  },
+  "walnut-table": {
+   "scale": 1,
+   "x": 0.5,
+   "y": 0.5
+  }
+ }
+}
