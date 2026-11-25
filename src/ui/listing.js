@@ -57,9 +57,10 @@
     label.style.cssText = 'margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;';
     const select = document.createElement('select');
     select.setAttribute('aria-label', 'Collar view');
-    for (const [key, text] of [['default', 'Default'], ['side', 'Side'], ['three-quarter', 'Three-quarter'], ['back', 'Back (buckle behind)'], ['angled', 'Angled (keeper in front)'], ['low-side', 'Low side (buckle left)'], ['stack', 'Three collars, stacked'], ['buckle-front', 'Front (buckle forward)'], ['pair-stacked', 'Two collars, stacked'], ['pair-angled', 'Two collars, angled']]) {
+    for (const [key, text] of [['side', 'Side'], ['three-quarter', 'Three-quarter'], ['back', 'Back (buckle behind)'], ['angled', 'Angled (keeper in front)'], ['low-side', 'Low side (buckle left)'], ['stack', 'Three collars, stacked'], ['buckle-front', 'Front (buckle forward)'], ['pair-stacked', 'Two collars, stacked'], ['pair-angled', 'Two collars, angled']]) {
       select.append(new Option(text, key, false, key === viewKey));
     }
+    if (viewKey === 'default') select.selectedIndex = -1;
     select.onchange = () => { location.assign(select.value === 'default' ? '/single-collar' : `/single-collar?view=${select.value}`); };
     label.append('View', select);
     document.querySelector('header.bar')?.append(label);
@@ -91,9 +92,15 @@
   /* ---------------- collars, top to bottom as they appear in the photo ---------------- */
   function collars() {
     const roles = MockupPlan.assignFinishes(state.decision.listing.centerColor, state.sideOrder);
-    return Object.values(state.template.slots)
+    const list = Object.values(state.template.slots)
       .filter((s) => s.collar != null)
       .map((s) => ({ index: s.collar, label: s.label, short: s.label.replace(/ collar$/i, ''), role: s.role, finish: roles[s.role] }));
+    if (list.length === 2) {
+      // Two-collar views only have Top and Bottom positions even if the template slot is named "middle".
+      list[1].label = 'Bottom collar';
+      list[1].short = 'Bottom';
+    }
+    return list;
   }
   const single = () => collars().length === 1;
 
