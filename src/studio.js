@@ -11,7 +11,7 @@
  *   /api/templates/:id      GET / POST (save geometry from the editor)
  *   /api/engraving.png      engraving raster (name, phone, font, phoneFont, w), same code path as export
  *   /api/phone              a random 419-555-XXXX number
- *   /api/name-ideas         dog-name ideas that match the patterns (Claude if ANTHROPIC_API_KEY is set)
+ *   /api/name-ideas         dog-name ideas that match the patterns (local Ollama; themed list if offline)
  *   /api/background.png     background plate preset
  *   /api/decision           POST: save the working decision
  *   /api/export             POST: render all frames at full size into out/listings/
@@ -27,7 +27,7 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 
-// local secrets (ANTHROPIC_API_KEY) from .env / .env.local, which git ignores; Vercel sets env vars itself
+// local secrets / overrides (.env / .env.local), which git ignores; Vercel sets env vars itself
 for (const f of ['.env', '.env.local']) {
   try { process.loadEnvFile(path.join(__dirname, '..', f)); } catch { /* missing: fine */ }
 }
@@ -37,7 +37,7 @@ const { FINISHES, decideListing } = require('./decide');
 const { rasterizeEngraving, randomPhone } = require('./engraving');
 const { fontList, warmFonts, resolveFontName, PHONE_FONT, DEFAULT_FONT } = require('./fonts');
 const catalog = require('./catalog');
-const { suggestNames } = require('./name-ideas');
+const { suggestNames } = require('./name-ideas-ollama');
 const { listPresets } = require('./background');
 const lifestyle = require('./lifestyle');
 const { renderListing, readTemplate, readJson, backgroundPng } = require('./mockup/node-io');
