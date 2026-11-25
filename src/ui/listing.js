@@ -96,6 +96,15 @@
       .filter((s) => s.collar != null)
       .map((s) => ({ index: s.collar, label: s.label, short: s.label.replace(/ collar$/i, ''), role: s.role, finish: roles[s.role] }));
     if (list.length === 2) {
+      if (state.template.id === 'single-collar-pair-angled') {
+        // In pair-angled, slot index 1 is visually upper/right (Top) and index 0 is lower/left (Bottom).
+        const [lower, upper] = list;
+        upper.label = 'Top collar';
+        upper.short = 'Top';
+        lower.label = 'Bottom collar';
+        lower.short = 'Bottom';
+        return [upper, lower];
+      }
       // Two-collar views only have Top and Bottom positions even if the template slot is named "middle".
       list[1].label = 'Bottom collar';
       list[1].short = 'Bottom';
