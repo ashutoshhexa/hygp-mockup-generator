@@ -1,0 +1,507 @@
+{
+ "id": "single-collar-back",
+ "name": "Single collar, Back (buckle behind) (PSD, 1 collar)",
+ "base": "poc/templates/single-collar-back/photo.png",
+ "width": 3000,
+ "height": 2250,
+ "renderScale": 1,
+ "patternScale": 1,
+ "bgBlur": 6,
+ "bgLift": 0.2,
+ "source": {
+  "psd": "psdFiles/Dog Collar Mockup Set by Creatsy® (2).psd",
+  "crop": [
+   333,
+   0,
+   5333,
+   4000
+  ]
+ },
+ "slots": {
+  "collar": {
+   "label": "Collar",
+   "role": "center",
+   "collar": 0
+  }
+ },
+ "layered": {
+  "below": "poc/templates/single-collar-back/below.png",
+  "bin": "poc/templates/single-collar-back/layers.bin",
+  "binBytes": 20877688,
+  "finishes": {
+   "silver": [
+    255,
+    255,
+    255
+   ],
+   "gold": [
+    236,
+    196,
+    120
+   ],
+   "rosegold": [
+    238,
+    178,
+    160
+   ]
+  },
+  "stack": [
+   {
+    "type": "fill",
+    "name": "Color: fabric",
+    "role": "fabric",
+    "slot": "collar",
+    "opacity": 1,
+    "color": [
+     255,
+     255,
+     255
+    ],
+    "alpha": {
+     "x": 663,
+     "y": 745,
+     "w": 1669,
+     "h": 907,
+     "type": "u8",
+     "offset": 0
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "(auto) Design: fabric (side 2)",
+    "slot": "collar",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 859,
+     "y": 795,
+     "w": 400,
+     "h": 84,
+     "type": "u8",
+     "offset": 1513783
+    },
+    "uv": {
+     "x": 859,
+     "y": 795,
+     "w": 400,
+     "h": 84,
+     "type": "uv16",
+     "su": 12,
+     "sv": 283,
+     "v0": 1,
+     "offset": 1547384
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "(auto) Design: fabric (side 2)",
+    "slot": "collar",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 677,
+     "y": 873,
+     "w": 167,
+     "h": 345,
+     "type": "u8",
+     "offset": 1681784
+    },
+    "uv": {
+     "x": 677,
+     "y": 873,
+     "w": 167,
+     "h": 345,
+     "type": "uv16",
+     "su": 12,
+     "sv": 284,
+     "offset": 1739400
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "(auto) Design: fabric (side 2)",
+    "slot": "collar",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 876,
+     "y": 767,
+     "w": 376,
+     "h": 83,
+     "type": "u8",
+     "offset": 1969860
+    },
+    "uv": {
+     "x": 876,
+     "y": 767,
+     "w": 376,
+     "h": 83,
+     "type": "uv16",
+     "su": 12,
+     "sv": 284,
+     "offset": 2001068
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "Design: fabric (side 2)",
+    "slot": "collar",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 1857,
+     "y": 801,
+     "w": 447,
+     "h": 366,
+     "type": "u8",
+     "offset": 2125900
+    },
+    "uv": {
+     "x": 1857,
+     "y": 801,
+     "w": 447,
+     "h": 366,
+     "type": "uv16",
+     "su": 12,
+     "sv": 284,
+     "offset": 2289502
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "(auto) Design: fabric (side 1)",
+    "slot": "collar",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 791,
+     "y": 794,
+     "w": 569,
+     "h": 370,
+     "type": "u8",
+     "offset": 2943910
+    },
+    "uv": {
+     "x": 791,
+     "y": 794,
+     "w": 569,
+     "h": 370,
+     "type": "uv16",
+     "su": 12,
+     "sv": 284,
+     "offset": 3154440
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "(auto) Design: fabric (side 1)",
+    "slot": "collar",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 1751,
+     "y": 807,
+     "w": 457,
+     "h": 389,
+     "type": "u8",
+     "offset": 3996560
+    },
+    "uv": {
+     "x": 1751,
+     "y": 807,
+     "w": 457,
+     "h": 389,
+     "type": "uv16",
+     "su": 12,
+     "sv": 284,
+     "offset": 4174334
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "Design: fabric (side 1)",
+    "slot": "collar",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 663,
+     "y": 944,
+     "w": 1669,
+     "h": 708,
+     "type": "u8",
+     "offset": 4885426
+    },
+    "uv": {
+     "x": 663,
+     "y": 944,
+     "w": 1669,
+     "h": 708,
+     "type": "uv16",
+     "su": 12,
+     "sv": 194,
+     "v0": 105,
+     "offset": 6067078
+    }
+   },
+   {
+    "type": "fill",
+    "name": "Color: buckles",
+    "role": "metal",
+    "slot": "collar",
+    "opacity": 1,
+    "color": [
+     255,
+     255,
+     255
+    ],
+    "alpha": {
+     "x": 729,
+     "y": 745,
+     "w": 1489,
+     "h": 470,
+     "type": "u8",
+     "offset": 10793686
+    }
+   },
+   {
+    "type": "fill",
+    "name": "Color: seam thread",
+    "role": "thread",
+    "slot": "collar",
+    "opacity": 1,
+    "color": [
+     255,
+     255,
+     255
+    ],
+    "alpha": {
+     "x": 1120,
+     "y": 838,
+     "w": 982,
+     "h": 307,
+     "type": "u8",
+     "offset": 11493516
+    }
+   }
+  ],
+  "overlay": [
+   {
+    "type": "levels",
+    "name": "Levels 2",
+    "inBlack": 15,
+    "inWhite": 255,
+    "outBlack": 0,
+    "outWhite": 255,
+    "gamma": 1,
+    "mask": {
+     "x": 663,
+     "y": 745,
+     "w": 1669,
+     "h": 907,
+     "type": "u8",
+     "offset": 11794990
+    }
+   },
+   {
+    "type": "blend",
+    "name": "w",
+    "mode": "soft light",
+    "opacity": 0.30196078431372547,
+    "alpha": {
+     "x": 663,
+     "y": 745,
+     "w": 1669,
+     "h": 907,
+     "type": "u8",
+     "offset": 11794990
+    },
+    "gray": {
+     "x": 663,
+     "y": 745,
+     "w": 1669,
+     "h": 907,
+     "type": "u8",
+     "offset": 13308773
+    }
+   },
+   {
+    "type": "blend",
+    "name": "w copy",
+    "mode": "multiply",
+    "opacity": 1,
+    "alpha": {
+     "x": 663,
+     "y": 745,
+     "w": 1669,
+     "h": 907,
+     "type": "u8",
+     "offset": 11794990
+    },
+    "gray": {
+     "x": 663,
+     "y": 745,
+     "w": 1669,
+     "h": 907,
+     "type": "u8",
+     "offset": 14822556
+    }
+   },
+   {
+    "type": "blend",
+    "name": "b",
+    "mode": "screen",
+    "opacity": 1,
+    "alpha": {
+     "x": 663,
+     "y": 745,
+     "w": 1669,
+     "h": 907,
+     "type": "u8",
+     "offset": 0
+    },
+    "gray": {
+     "x": 663,
+     "y": 745,
+     "w": 1669,
+     "h": 907,
+     "type": "u8",
+     "offset": 16336339
+    }
+   },
+   {
+    "type": "hue",
+    "name": "Hue/Saturation 2",
+    "saturation": 5,
+    "lightness": 0,
+    "mask": {
+     "x": 663,
+     "y": 745,
+     "w": 1669,
+     "h": 907,
+     "type": "u8",
+     "offset": 0
+    }
+   },
+   {
+    "type": "levels",
+    "name": "Levels 2",
+    "inBlack": 15,
+    "inWhite": 255,
+    "outBlack": 0,
+    "outWhite": 255,
+    "gamma": 1,
+    "mask": {
+     "x": 663,
+     "y": 745,
+     "w": 1669,
+     "h": 907,
+     "type": "u8",
+     "offset": 11794990
+    }
+   },
+   {
+    "type": "blend",
+    "name": "w",
+    "mode": "soft light",
+    "opacity": 0.30196078431372547,
+    "alpha": {
+     "x": 663,
+     "y": 745,
+     "w": 1669,
+     "h": 907,
+     "type": "u8",
+     "offset": 11794990
+    },
+    "gray": {
+     "x": 663,
+     "y": 745,
+     "w": 1669,
+     "h": 907,
+     "type": "u8",
+     "offset": 13308773
+    }
+   },
+   {
+    "type": "blend",
+    "name": "w copy",
+    "mode": "multiply",
+    "opacity": 0.30196078431372547,
+    "alpha": {
+     "x": 663,
+     "y": 745,
+     "w": 1669,
+     "h": 907,
+     "type": "u8",
+     "offset": 11794990
+    },
+    "gray": {
+     "x": 663,
+     "y": 745,
+     "w": 1669,
+     "h": 907,
+     "type": "u8",
+     "offset": 17850122
+    }
+   },
+   {
+    "type": "blend",
+    "name": "b",
+    "mode": "screen",
+    "opacity": 1,
+    "alpha": {
+     "x": 663,
+     "y": 745,
+     "w": 1669,
+     "h": 907,
+     "type": "u8",
+     "offset": 0
+    },
+    "gray": {
+     "x": 663,
+     "y": 745,
+     "w": 1669,
+     "h": 907,
+     "type": "u8",
+     "offset": 19363905
+    }
+   },
+   {
+    "type": "hue",
+    "name": "Hue/Saturation 2",
+    "saturation": 5,
+    "lightness": 0,
+    "mask": {
+     "x": 663,
+     "y": 745,
+     "w": 1669,
+     "h": 907,
+     "type": "u8",
+     "offset": 0
+    }
+   }
+  ],
+  "engravings": []
+ },
+ "layers": []
+}

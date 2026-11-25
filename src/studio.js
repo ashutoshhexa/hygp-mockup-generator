@@ -52,6 +52,13 @@ const PAGE_DECISIONS = {
   single: 'preview-single.json',
   side: 'preview-side.json',
   'three-quarter': 'preview-three-quarter.json',
+  'back': 'preview-back.json',
+  'angled': 'preview-angled.json',
+  'low-side': 'preview-low-side.json',
+  'stack': 'preview-stack.json',
+  'buckle-front': 'preview-buckle-front.json',
+  'pair-stacked': 'preview-pair-stacked.json',
+  'pair-angled': 'preview-pair-angled.json',
 };
 const workingDecision = (page) => (PAGE_DECISIONS[page] ? fromRoot('decisions', PAGE_DECISIONS[page]) : WORKING_DECISION);
 const DEFAULT_DECISION = fromRoot('decisions', 'christmas-gingerbread.json');

@@ -1,0 +1,561 @@
+{
+ "id": "single-collar-pair-stacked",
+ "name": "Single-collar page, Two collars, stacked (PSD, 2 collars)",
+ "base": "poc/templates/single-collar-pair-stacked/photo.png",
+ "width": 3000,
+ "height": 2250,
+ "renderScale": 1,
+ "patternScale": 1,
+ "bgBlur": 6,
+ "bgLift": 0.2,
+ "source": {
+  "psd": "psdFiles/Dog Collar Mockup Set by Creatsy® (11).psd",
+  "crop": [
+   333,
+   0,
+   5333,
+   4000
+  ]
+ },
+ "slots": {
+  "top": {
+   "label": "Top collar",
+   "role": "left",
+   "collar": 0
+  },
+  "middle": {
+   "label": "Middle collar",
+   "role": "center",
+   "collar": 1
+  }
+ },
+ "layered": {
+  "below": "poc/templates/single-collar-pair-stacked/below.png",
+  "bin": "poc/templates/single-collar-pair-stacked/layers.bin",
+  "binBytes": 23652046,
+  "finishes": {
+   "silver": [
+    255,
+    255,
+    255
+   ],
+   "gold": [
+    236,
+    196,
+    120
+   ],
+   "rosegold": [
+    238,
+    178,
+    160
+   ]
+  },
+  "stack": [
+   {
+    "type": "fill",
+    "name": "Color: collar 2",
+    "role": "fabric",
+    "slot": "middle",
+    "opacity": 1,
+    "color": [
+     255,
+     255,
+     255
+    ],
+    "alpha": {
+     "x": 552,
+     "y": 634,
+     "w": 1907,
+     "h": 1011,
+     "type": "u8",
+     "offset": 0
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "(auto) Design: fabric (side 2) /collar 2  ",
+    "slot": "middle",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 700,
+     "y": 1125,
+     "w": 146,
+     "h": 54,
+     "type": "u8",
+     "offset": 1927977
+    },
+    "uv": {
+     "x": 700,
+     "y": 1125,
+     "w": 146,
+     "h": 54,
+     "type": "uv16",
+     "su": 12,
+     "sv": 284,
+     "offset": 1935862
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "(auto) Design: fabric (side 2) /collar 2  ",
+    "slot": "middle",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 1751,
+     "y": 1201,
+     "w": 301,
+     "h": 377,
+     "type": "u8",
+     "offset": 1967398
+    },
+    "uv": {
+     "x": 1751,
+     "y": 1201,
+     "w": 301,
+     "h": 377,
+     "type": "uv16",
+     "su": 12,
+     "sv": 283,
+     "v0": 1,
+     "offset": 2080876
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "Design: fabric (side 2) /collar 2 ",
+    "slot": "middle",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 699,
+     "y": 1087,
+     "w": 1745,
+     "h": 331,
+     "type": "u8",
+     "offset": 2534784
+    },
+    "uv": {
+     "x": 699,
+     "y": 1087,
+     "w": 1745,
+     "h": 331,
+     "type": "uv16",
+     "su": 12,
+     "sv": 284,
+     "offset": 3112380
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "(auto) Design: fabric (side 1) /collar 2",
+    "slot": "middle",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 708,
+     "y": 1154,
+     "w": 128,
+     "h": 46,
+     "type": "u8",
+     "offset": 5422760
+    },
+    "uv": {
+     "x": 708,
+     "y": 1154,
+     "w": 128,
+     "h": 46,
+     "type": "uv16",
+     "su": 12,
+     "sv": 284,
+     "offset": 5428648
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "(auto) Design: fabric (side 1) /collar 2",
+    "slot": "middle",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 552,
+     "y": 1119,
+     "w": 397,
+     "h": 432,
+     "type": "u8",
+     "offset": 5452200
+    },
+    "uv": {
+     "x": 552,
+     "y": 1119,
+     "w": 397,
+     "h": 432,
+     "type": "uv16",
+     "su": 12,
+     "sv": 284,
+     "offset": 5623704
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "Design: fabric (side 1) /collar 2",
+    "slot": "middle",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 1401,
+     "y": 1135,
+     "w": 1058,
+     "h": 458,
+     "type": "u8",
+     "offset": 6309720
+    },
+    "uv": {
+     "x": 1401,
+     "y": 1135,
+     "w": 1058,
+     "h": 458,
+     "type": "uv16",
+     "su": 12,
+     "sv": 274,
+     "v0": 2,
+     "offset": 6794284
+    }
+   },
+   {
+    "type": "fill",
+    "name": "Color: buckles /collar 2",
+    "role": "metal",
+    "slot": "middle",
+    "opacity": 1,
+    "color": [
+     255,
+     255,
+     255
+    ],
+    "alpha": {
+     "x": 576,
+     "y": 1039,
+     "w": 1485,
+     "h": 606,
+     "type": "u8",
+     "offset": 8732540
+    }
+   },
+   {
+    "type": "fill",
+    "name": "Color: seam thread /collar 2",
+    "role": "thread",
+    "slot": "middle",
+    "opacity": 1,
+    "color": [
+     255,
+     255,
+     255
+    ],
+    "alpha": {
+     "x": 1554,
+     "y": 1270,
+     "w": 382,
+     "h": 291,
+     "type": "u8",
+     "offset": 9632450
+    }
+   },
+   {
+    "type": "fill",
+    "name": "Color: collar 1",
+    "role": "fabric",
+    "slot": "top",
+    "opacity": 1,
+    "color": [
+     255,
+     255,
+     255
+    ],
+    "alpha": {
+     "x": 730,
+     "y": 701,
+     "w": 1678,
+     "h": 465,
+     "type": "u8",
+     "offset": 9743612
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "Design: fabric (side 2) /collar 1",
+    "slot": "top",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 833,
+     "y": 704,
+     "w": 1565,
+     "h": 131,
+     "type": "u8",
+     "offset": 10523882
+    },
+    "uv": {
+     "x": 833,
+     "y": 704,
+     "w": 1565,
+     "h": 131,
+     "type": "uv16",
+     "su": 12,
+     "sv": 284,
+     "offset": 10728898
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "Design: fabric (side 1) /collar 1",
+    "slot": "top",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 730,
+     "y": 746,
+     "w": 1678,
+     "h": 420,
+     "type": "u8",
+     "offset": 11548958
+    },
+    "uv": {
+     "x": 730,
+     "y": 746,
+     "w": 1678,
+     "h": 420,
+     "type": "uv16",
+     "su": 12,
+     "sv": 265,
+     "v0": 7,
+     "offset": 12253718
+    }
+   },
+   {
+    "type": "fill",
+    "name": "Color: buckles /collar 1",
+    "role": "metal",
+    "slot": "top",
+    "opacity": 1,
+    "color": [
+     255,
+     255,
+     255
+    ],
+    "alpha": {
+     "x": 671,
+     "y": 634,
+     "w": 447,
+     "h": 532,
+     "type": "u8",
+     "offset": 15072758
+    }
+   },
+   {
+    "type": "fill",
+    "name": "Color: seam thread /collar 1",
+    "role": "thread",
+    "slot": "top",
+    "opacity": 1,
+    "color": [
+     255,
+     255,
+     255
+    ],
+    "alpha": {
+     "x": 787,
+     "y": 798,
+     "w": 155,
+     "h": 290,
+     "type": "u8",
+     "offset": 15310562
+    }
+   }
+  ],
+  "overlay": [
+   {
+    "type": "levels",
+    "name": "Levels 2",
+    "inBlack": 15,
+    "inWhite": 255,
+    "outBlack": 0,
+    "outWhite": 255,
+    "gamma": 1,
+    "mask": {
+     "x": 552,
+     "y": 634,
+     "w": 1907,
+     "h": 1011,
+     "type": "u8",
+     "offset": 15355512
+    }
+   },
+   {
+    "type": "blend",
+    "name": "w",
+    "mode": "soft light",
+    "opacity": 0.30196078431372547,
+    "alpha": {
+     "x": 552,
+     "y": 634,
+     "w": 1907,
+     "h": 1011,
+     "type": "u8",
+     "offset": 15355512
+    },
+    "gray": {
+     "x": 552,
+     "y": 634,
+     "w": 1907,
+     "h": 1011,
+     "type": "u8",
+     "offset": 17283489
+    }
+   },
+   {
+    "type": "blend",
+    "name": "w copy",
+    "mode": "multiply",
+    "opacity": 1,
+    "alpha": {
+     "x": 552,
+     "y": 634,
+     "w": 1907,
+     "h": 1011,
+     "type": "u8",
+     "offset": 15355512
+    },
+    "gray": {
+     "x": 552,
+     "y": 634,
+     "w": 1907,
+     "h": 1011,
+     "type": "u8",
+     "offset": 19211466
+    }
+   },
+   {
+    "type": "blend",
+    "name": "b",
+    "mode": "screen",
+    "opacity": 1,
+    "alpha": {
+     "x": 552,
+     "y": 634,
+     "w": 1907,
+     "h": 1011,
+     "type": "u8",
+     "offset": 0
+    },
+    "gray": {
+     "x": 552,
+     "y": 634,
+     "w": 1907,
+     "h": 1011,
+     "type": "u8",
+     "offset": 21139443
+    }
+   },
+   {
+    "type": "hue",
+    "name": "Hue/Saturation 2",
+    "saturation": 5,
+    "lightness": 0,
+    "mask": {
+     "x": 552,
+     "y": 634,
+     "w": 1907,
+     "h": 1011,
+     "type": "u8",
+     "offset": 0
+    }
+   }
+  ],
+  "engravings": [
+   {
+    "type": "engrave",
+    "name": "Design: buckle (engraved) /collar 2",
+    "slot": "middle",
+    "mode": "multiply",
+    "content": [
+     577,
+     499
+    ],
+    "alpha": {
+     "x": 1015,
+     "y": 1249,
+     "w": 313,
+     "h": 305,
+     "type": "u8",
+     "offset": 23067420
+    },
+    "uv": {
+     "x": 1015,
+     "y": 1249,
+     "w": 313,
+     "h": 305,
+     "type": "uv16",
+     "su": 113,
+     "sv": 131,
+     "offset": 23162886
+    }
+   },
+   {
+    "type": "engrave",
+    "name": "Design: buckle (engraved) /collar 1",
+    "slot": "top",
+    "mode": "multiply",
+    "content": [
+     577,
+     499
+    ],
+    "alpha": {
+     "x": 644,
+     "y": 751,
+     "w": 74,
+     "h": 290,
+     "type": "u8",
+     "offset": 23544746
+    },
+    "uv": {
+     "x": 644,
+     "y": 751,
+     "w": 74,
+     "h": 290,
+     "type": "uv16",
+     "su": 113,
+     "sv": 131,
+     "offset": 23566206
+    }
+   }
+  ]
+ },
+ "layers": []
+}

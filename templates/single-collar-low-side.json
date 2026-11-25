@@ -1,0 +1,382 @@
+{
+ "id": "single-collar-low-side",
+ "name": "Single collar, Low side (buckle left) (PSD, 1 collar)",
+ "base": "poc/templates/single-collar-low-side/photo.png",
+ "width": 3000,
+ "height": 2250,
+ "renderScale": 1,
+ "patternScale": 1,
+ "bgBlur": 6,
+ "bgLift": 0.2,
+ "source": {
+  "psd": "psdFiles/Dog Collar Mockup Set by Creatsy® (8).psd",
+  "crop": [
+   333,
+   0,
+   5333,
+   4000
+  ]
+ },
+ "slots": {
+  "collar": {
+   "label": "Collar",
+   "role": "center",
+   "collar": 0
+  }
+ },
+ "layered": {
+  "below": "poc/templates/single-collar-low-side/below.png",
+  "bin": "poc/templates/single-collar-low-side/layers.bin",
+  "binBytes": 14969060,
+  "finishes": {
+   "silver": [
+    255,
+    255,
+    255
+   ],
+   "gold": [
+    236,
+    196,
+    120
+   ],
+   "rosegold": [
+    238,
+    178,
+    160
+   ]
+  },
+  "stack": [
+   {
+    "type": "fill",
+    "name": "Color: fabric",
+    "role": "fabric",
+    "slot": "collar",
+    "opacity": 1,
+    "color": [
+     255,
+     255,
+     255
+    ],
+    "alpha": {
+     "x": 471,
+     "y": 765,
+     "w": 2029,
+     "h": 690,
+     "type": "u8",
+     "offset": 0
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "(auto) Design: fabric (side 2)",
+    "slot": "collar",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 777,
+     "y": 985,
+     "w": 292,
+     "h": 54,
+     "type": "u8",
+     "offset": 1400010
+    },
+    "uv": {
+     "x": 777,
+     "y": 985,
+     "w": 292,
+     "h": 54,
+     "type": "uv16",
+     "su": 12,
+     "sv": 284,
+     "offset": 1415778
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "(auto) Design: fabric (side 2)",
+    "slot": "collar",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 699,
+     "y": 849,
+     "w": 54,
+     "h": 53,
+     "type": "u8",
+     "offset": 1478850
+    },
+    "uv": {
+     "x": 699,
+     "y": 849,
+     "w": 54,
+     "h": 53,
+     "type": "uv16",
+     "su": 12,
+     "sv": 284,
+     "offset": 1481712
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "Design: fabric (side 2)",
+    "slot": "collar",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 592,
+     "y": 838,
+     "w": 1888,
+     "h": 249,
+     "type": "u8",
+     "offset": 1493160
+    },
+    "uv": {
+     "x": 592,
+     "y": 838,
+     "w": 1888,
+     "h": 249,
+     "type": "uv16",
+     "su": 12,
+     "sv": 284,
+     "offset": 1963272
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "(auto) Design: fabric (side 1)",
+    "slot": "collar",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 610,
+     "y": 857,
+     "w": 278,
+     "h": 138,
+     "type": "u8",
+     "offset": 3843720
+    },
+    "uv": {
+     "x": 610,
+     "y": 857,
+     "w": 278,
+     "h": 138,
+     "type": "uv16",
+     "su": 12,
+     "sv": 283,
+     "v0": 1,
+     "offset": 3882084
+    }
+   },
+   {
+    "type": "pattern",
+    "name": "Design: fabric (side 1)",
+    "slot": "collar",
+    "opacity": 1,
+    "content": [
+     5300,
+     230
+    ],
+    "alpha": {
+     "x": 569,
+     "y": 965,
+     "w": 1931,
+     "h": 490,
+     "type": "u8",
+     "offset": 4035540
+    },
+    "uv": {
+     "x": 569,
+     "y": 965,
+     "w": 1931,
+     "h": 490,
+     "type": "uv16",
+     "su": 12,
+     "sv": 284,
+     "offset": 4981730
+    }
+   },
+   {
+    "type": "fill",
+    "name": "Color: buckles",
+    "role": "metal",
+    "slot": "collar",
+    "opacity": 1,
+    "color": [
+     255,
+     255,
+     255
+    ],
+    "alpha": {
+     "x": 471,
+     "y": 765,
+     "w": 475,
+     "h": 682,
+     "type": "u8",
+     "offset": 8766490
+    }
+   },
+   {
+    "type": "fill",
+    "name": "Color: seam thread",
+    "role": "thread",
+    "slot": "collar",
+    "opacity": 1,
+    "color": [
+     255,
+     255,
+     255
+    ],
+    "alpha": {
+     "x": 644,
+     "y": 1026,
+     "w": 168,
+     "h": 335,
+     "type": "u8",
+     "offset": 9090440
+    }
+   }
+  ],
+  "overlay": [
+   {
+    "type": "levels",
+    "name": "Levels 2",
+    "inBlack": 15,
+    "inWhite": 255,
+    "outBlack": 0,
+    "outWhite": 255,
+    "gamma": 1,
+    "mask": {
+     "x": 471,
+     "y": 765,
+     "w": 2029,
+     "h": 690,
+     "type": "u8",
+     "offset": 9146720
+    }
+   },
+   {
+    "type": "blend",
+    "name": "w",
+    "mode": "soft light",
+    "opacity": 0.30196078431372547,
+    "alpha": {
+     "x": 471,
+     "y": 765,
+     "w": 2029,
+     "h": 690,
+     "type": "u8",
+     "offset": 9146720
+    },
+    "gray": {
+     "x": 471,
+     "y": 765,
+     "w": 2029,
+     "h": 690,
+     "type": "u8",
+     "offset": 10546730
+    }
+   },
+   {
+    "type": "blend",
+    "name": "w copy",
+    "mode": "multiply",
+    "opacity": 1,
+    "alpha": {
+     "x": 471,
+     "y": 765,
+     "w": 2029,
+     "h": 690,
+     "type": "u8",
+     "offset": 9146720
+    },
+    "gray": {
+     "x": 471,
+     "y": 765,
+     "w": 2029,
+     "h": 690,
+     "type": "u8",
+     "offset": 11946740
+    }
+   },
+   {
+    "type": "blend",
+    "name": "b",
+    "mode": "screen",
+    "opacity": 1,
+    "alpha": {
+     "x": 471,
+     "y": 765,
+     "w": 2029,
+     "h": 690,
+     "type": "u8",
+     "offset": 0
+    },
+    "gray": {
+     "x": 471,
+     "y": 765,
+     "w": 2029,
+     "h": 690,
+     "type": "u8",
+     "offset": 13346750
+    }
+   },
+   {
+    "type": "hue",
+    "name": "Hue/Saturation 2",
+    "saturation": 5,
+    "lightness": 0,
+    "mask": {
+     "x": 471,
+     "y": 765,
+     "w": 2029,
+     "h": 690,
+     "type": "u8",
+     "offset": 0
+    }
+   }
+  ],
+  "engravings": [
+   {
+    "type": "engrave",
+    "name": "Design: buckle (engraved)",
+    "slot": "collar",
+    "mode": "multiply",
+    "content": [
+     577,
+     499
+    ],
+    "alpha": {
+     "x": 431,
+     "y": 942,
+     "w": 130,
+     "h": 342,
+     "type": "u8",
+     "offset": 14746760
+    },
+    "uv": {
+     "x": 431,
+     "y": 942,
+     "w": 130,
+     "h": 342,
+     "type": "uv16",
+     "su": 113,
+     "sv": 131,
+     "offset": 14791220
+    }
+   }
+  ]
+ },
+ "layers": []
+}

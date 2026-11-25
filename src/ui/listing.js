@@ -38,9 +38,16 @@
     'single-collar': { id: 'single', template: 'single-collar' }, // one collar, front view
     'single-collar-side': { id: 'side', template: 'single-collar-side' }, // one collar, side view
     'single-collar-three-quarter': { id: 'three-quarter', template: 'single-collar-three-quarter' }, // side three-quarter view
+    'single-collar-back': { id: 'back', template: 'single-collar-back' }, // Back (buckle behind) (psdFiles)
+    'single-collar-angled': { id: 'angled', template: 'single-collar-angled' }, // Angled (keeper in front) (psdFiles)
+    'single-collar-low-side': { id: 'low-side', template: 'single-collar-low-side' }, // Low side (buckle left) (psdFiles)
+    'single-collar-stack': { id: 'stack', template: 'single-collar-stack' }, // Three collars, stacked (PSD (10), separate copy from /listing's)
+    'single-collar-buckle-front': { id: 'buckle-front', template: 'single-collar-buckle-front' }, // Front (buckle forward) (PSD (4))
+    'single-collar-pair-stacked': { id: 'pair-stacked', template: 'single-collar-pair-stacked' }, // Two collars, stacked (PSD (11))
+    'single-collar-pair-angled': { id: 'pair-angled', template: 'single-collar-pair-angled' }, // Two collars, angled (PSD (6))
   };
-  // /single-collar holds all three views; ?view= picks one (the old side / three-quarter routes redirect here)
-  const VIEWS = { default: 'single-collar', side: 'single-collar-side', 'three-quarter': 'single-collar-three-quarter' };
+  // /single-collar holds every single-collar view; ?view= picks one (the old side / three-quarter routes redirect here)
+  const VIEWS = { default: 'single-collar', side: 'single-collar-side', 'three-quarter': 'single-collar-three-quarter', 'back': 'single-collar-back', 'angled': 'single-collar-angled', 'low-side': 'single-collar-low-side', 'stack': 'single-collar-stack', 'buckle-front': 'single-collar-buckle-front', 'pair-stacked': 'single-collar-pair-stacked', 'pair-angled': 'single-collar-pair-angled', };
   const routeName = location.pathname.replace(/^\/|\/$/g, '');
   const viewKey = routeName === 'single-collar' && VIEWS[new URLSearchParams(location.search).get('view')] ? new URLSearchParams(location.search).get('view') : 'default';
   const pageDef = PAGES[routeName === 'single-collar' ? VIEWS[viewKey] : routeName];
@@ -50,7 +57,7 @@
     label.style.cssText = 'margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;';
     const select = document.createElement('select');
     select.setAttribute('aria-label', 'Collar view');
-    for (const [key, text] of [['default', 'Default'], ['side', 'Side'], ['three-quarter', 'Three-quarter']]) {
+    for (const [key, text] of [['default', 'Default'], ['side', 'Side'], ['three-quarter', 'Three-quarter'], ['back', 'Back (buckle behind)'], ['angled', 'Angled (keeper in front)'], ['low-side', 'Low side (buckle left)'], ['stack', 'Three collars, stacked'], ['buckle-front', 'Front (buckle forward)'], ['pair-stacked', 'Two collars, stacked'], ['pair-angled', 'Two collars, angled']]) {
       select.append(new Option(text, key, false, key === viewKey));
     }
     select.onchange = () => { location.assign(select.value === 'default' ? '/single-collar' : `/single-collar?view=${select.value}`); };
