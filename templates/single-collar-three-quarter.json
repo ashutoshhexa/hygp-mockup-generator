@@ -1413,7 +1413,34 @@
   ],
   "threadTint": 0.35,
   "threadOpacity": 0.35,
-  "threadSoften": 0.5
+  "threadSoften": 0.5,
+  "metalPlates": {
+   "rosegold": "poc/templates/single-collar-three-quarter/metal-rosegold-rich.png"
+  },
+  "metalPlateOptions": {
+   "rosegold": [
+    {
+     "label": "Blush (original)",
+     "file": "poc/templates/single-collar-three-quarter/metal-rosegold.png"
+    },
+    {
+     "label": "Rose",
+     "file": "poc/templates/single-collar-three-quarter/metal-rosegold-rich.png"
+    },
+    {
+     "label": "Copper Rose",
+     "file": "poc/templates/single-collar-three-quarter/metal-rosegold-rich2.png"
+    },
+    {
+     "label": "Warm Copper",
+     "file": "poc/templates/single-collar-three-quarter/metal-rosegold-rich3.png"
+    },
+    {
+     "label": "Deep Copper",
+     "file": "poc/templates/single-collar-three-quarter/metal-rosegold-rich4.png"
+    }
+   ]
+  }
  },
  "layers": []
 }
