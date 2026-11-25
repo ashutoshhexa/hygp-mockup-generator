@@ -106,3 +106,8 @@ node --max-old-space-size=12000 src/tools/import-psd.js "poc/templates/<file>.ps
   0.4 levels on average outside the fabric.
 - The watermark layer is left out. **Show the parts** in the preview shows how the PSD divides each collar.
 - Collar slots: PSD collar 1/2/3 = top/middle/bottom = the UI's left/middle/right. The middle one gets the best-seller finish.
+- Engraving: each buckle's slot comes from the PSD's `Design: buckle (engraved)` layer, kept on that buckle's metal.
+  When that layer does not sit on the plate, draw the plate in `templates/engraving-surfaces.json` (four corners in
+  reading order: the text's top-left, top-right, bottom-right, bottom-left) and re-import. The importer stops on any
+  slot that would put text sideways, upside down or mirrored. `node src/tools/check-engraving.js` renders every
+  single-collar view with real lettering and writes `out/engraving-check/sheet.png`; it exits 1 if a slot fails.

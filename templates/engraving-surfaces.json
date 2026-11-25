@@ -1,0 +1,38 @@
+{
+ "about": "Engraving plates drawn by hand, per template and collar slot, for buckles whose PSD engraving layer does not sit on the plate. Everything not listed uses the PSD's own engraving layer. 'plate' is the plate as seen in the 3000x2250 photo, four [x, y] corners in reading order: top-left, top-right, bottom-right, bottom-left of the text. Top-left to top-right is the direction the name reads in; top-left to bottom-left is the direction from the name down to the phone line. The importer (src/tools/import-psd.js) maps the engraving onto this quad, keeps it on the buckle metal, and refuses a plate that would make the text read sideways, upside down or mirrored. Re-import the template after a change. Set \"engrave\": false on a slot to leave that buckle without engraving on purpose.",
+ "single-collar-pair-angled": {
+  "middle": {
+   "plate": [
+    [
+     1558,
+     859
+    ],
+    [
+     1774,
+     971
+    ],
+    [
+     1686,
+     1207
+    ],
+    [
+     1457,
+     1115
+    ]
+   ],
+   "why": "Top-right collar: the PSD layer is an upright square on a buckle tilted about 27 degrees."
+  }
+ },
+ "single-collar-pair-stacked": {
+  "top": {
+   "engrave": false,
+   "why": "Top collar: no engraving in this view, by request (its buckle is seen end-on)."
+  }
+ },
+ "single-collar-low-side": {
+  "collar": {
+   "engrave": false,
+   "why": "No engraving in this view, by request (the buckle is seen end-on)."
+  }
+ }
+}

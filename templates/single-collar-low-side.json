@@ -15,7 +15,8 @@
    0,
    5333,
    4000
-  ]
+  ],
+  "engravingPlates": "templates/engraving-surfaces.json"
  },
  "slots": {
   "collar": {
@@ -27,7 +28,7 @@
  "layered": {
   "below": "poc/templates/single-collar-low-side/below.png",
   "bin": "poc/templates/single-collar-low-side/layers.bin",
-  "binBytes": 14969060,
+  "binBytes": 14746760,
   "finishes": {
    "silver": [
     255,
@@ -347,36 +348,7 @@
     }
    }
   ],
-  "engravings": [
-   {
-    "type": "engrave",
-    "name": "Design: buckle (engraved)",
-    "slot": "collar",
-    "mode": "multiply",
-    "content": [
-     577,
-     499
-    ],
-    "alpha": {
-     "x": 431,
-     "y": 942,
-     "w": 130,
-     "h": 342,
-     "type": "u8",
-     "offset": 14746760
-    },
-    "uv": {
-     "x": 431,
-     "y": 942,
-     "w": 130,
-     "h": 342,
-     "type": "uv16",
-     "su": 113,
-     "sv": 131,
-     "offset": 14791220
-    }
-   }
-  ]
+  "engravings": []
  },
  "layers": []
 }

@@ -15,7 +15,8 @@
    0,
    5333,
    4000
-  ]
+  ],
+  "engravingPlates": "templates/engraving-surfaces.json"
  },
  "slots": {
   "top": {
@@ -32,7 +33,7 @@
  "layered": {
   "below": "poc/templates/single-collar-pair-angled/below.png",
   "bin": "poc/templates/single-collar-pair-angled/layers.bin",
-  "binBytes": 27626910,
+  "binBytes": 27642420,
   "finishes": {
    "silver": [
     255,
@@ -627,26 +628,26 @@
     "slot": "middle",
     "mode": "multiply",
     "content": [
-     577,
-     499
+     517,
+     556
     ],
     "alpha": {
-     "x": 1442,
-     "y": 875,
-     "w": 334,
-     "h": 321,
+     "x": 1457,
+     "y": 859,
+     "w": 317,
+     "h": 348,
      "type": "u8",
      "offset": 26734893
     },
     "uv": {
-     "x": 1442,
-     "y": 875,
-     "w": 334,
-     "h": 321,
+     "x": 1457,
+     "y": 859,
+     "w": 317,
+     "h": 348,
      "type": "uv16",
-     "su": 113,
-     "sv": 131,
-     "offset": 26842108
+     "su": 126,
+     "sv": 117,
+     "offset": 26845210
     }
    },
    {
@@ -664,7 +665,7 @@
      "w": 277,
      "h": 257,
      "type": "u8",
-     "offset": 27270964
+     "offset": 27286474
     },
     "uv": {
      "x": 637,
@@ -674,7 +675,7 @@
      "type": "uv16",
      "su": 113,
      "sv": 131,
-     "offset": 27342154
+     "offset": 27357664
     }
    }
   ]

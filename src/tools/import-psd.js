@@ -5,6 +5,10 @@
  *
  *   node src/tools/import-psd.js <file.psd> <templateId> [--crop x,y,w,h] [--width 3000] [--name "..."]
  *
+ * Engraving: each buckle's slot comes from the PSD's "Design: buckle (engraved)" layer, unless
+ * templates/engraving-surfaces.json draws that buckle's plate (see the file). Either way the
+ * slot is kept on the buckle metal, and an import that would put text sideways, upside down
+ * or mirrored stops with an error (src/tools/engraving-axes.js).
  * --engrave-shift dx,dy moves the engraving slots (output px) when the PSD's hidden
  * "Design: buckle (engraved)" layer was never lined up with the buckle face.
  *
@@ -28,7 +32,8 @@ const crypto = require('crypto');
 const sharp = require('sharp');
 const { readPsd, initializeCanvas } = require('ag-psd');
 const { fromRoot } = require('../paths');
-const { placedMapper, rasterizeUV, FRAMES } = require('./psd-warp');
+const { placedMapper, rasterizeUV, FRAMES, homography } = require('./psd-warp');
+const { axesFromMapper, axesProblems } = require('./engraving-axes');
 
 initializeCanvas(() => { throw new Error('canvas not needed'); }, (w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }));
 
@@ -49,6 +54,10 @@ const SLOTS = {
   3: { slot: 'bottom', label: 'Bottom collar', role: 'right', collar: 2 },
 };
 const SINGLE = { slot: 'collar', label: 'Collar', role: 'center', collar: 0 };
+
+// hand-drawn engraving plates for this template, by slot (templates/engraving-surfaces.json)
+const surfacesFile = fromRoot('templates', 'engraving-surfaces.json');
+const engravingPlates = (fs.existsSync(surfacesFile) && JSON.parse(fs.readFileSync(surfacesFile, 'utf8'))[id]) || {};
 
 const t0 = Date.now();
 const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
@@ -403,11 +412,63 @@ async function main() {
     if (!visible(e) && !engr) continue;
     const slot = slotOf(name);
 
+    if (engr && engravingPlates[slot.slot] && engravingPlates[slot.slot].engrave === false) {
+      log(`engraving left off for ${slot.slot} (engraving-surfaces.json)`);
+      continue;
+    }
     if (engr) {
-      const mapper = placedMapper(l.placedLayer);
-      const uv = rasterizeUV(mapper, OW, OH, [CX, CY], s, 2);
+      // The engraving sits on this collar's buckle: its metal (clipped to the collar base).
+      const metal = new Float32Array(OW * OH);
+      for (const m of all) {
+        if (!/^Color: buckles/.test(m.l.name || '') || !visible(m) || slotOf(m.l.name) !== slot) continue;
+        const ma = down(alphaFull(m.l));
+        for (let i = 0; i < ma.length; i++) metal[i] = Math.max(metal[i], ma[i]);
+      }
+      const base = down(baseAlphaFull);
+      for (let i = 0; i < metal.length; i++) metal[i] *= base[i];
+      const onMetal = (uv) => { let hit = 0, on = 0; for (let i = 0; i < uv.hit.length; i++) if (uv.hit[i]) { hit++; on += metal[i]; } return hit ? on / hit : 0; };
+
+      // A plate drawn in templates/engraving-surfaces.json wins over the PSD's layer: for a
+      // buckle whose engraving layer was never lined up with the plate.
+      const plate = engravingPlates[slot.slot] && engravingPlates[slot.slot].plate;
+      let mapper, uv;
+      if (plate) {
+        const pm = placedMapper(l.placedLayer);
+        const p = plate.flat();
+        const doc = [0, 2, 4, 6].map((k) => [CX + p[k] / s, CY + p[k + 1] / s]);
+        // the slot's content takes the plate's own proportions (as seen), so the text keeps its
+        // shape on a narrow plate; its area stays the PSD layer's, for the same sharpness
+        const len = (a, b) => Math.hypot(p[b] - p[a], p[b + 1] - p[a + 1]);
+        const aspect = (len(0, 2) + len(6, 4)) / (len(0, 6) + len(2, 4));
+        const ch = Math.round(Math.sqrt((pm.width * pm.height) / aspect)), cw = Math.round(ch * aspect);
+        const toDoc = homography([[0, 0], [cw, 0], [cw, ch], [0, ch]], doc);
+        mapper = { width: cw, height: ch, forward: toDoc };
+        uv = rasterizeUV(mapper, OW, OH, [CX, CY], s, 2);
+        log(`  engraving plate for ${slot.slot} (engraving-surfaces.json): on the buckle ${(onMetal(uv) * 100).toFixed(0)}%`);
+      } else {
+        // Which frame the transform corners refer to differs per layer (see psd-warp.js), as for
+        // the fabric pieces. The layer is hidden, so there is no composite to match: the frame
+        // that puts the slot on this collar's buckle wins (ties keep the first, 'mesh').
+        let best = null;
+        for (const frame of FRAMES) {
+          const m = placedMapper(l.placedLayer, frame);
+          const r = rasterizeUV(m, OW, OH, [CX, CY], s, 2);
+          const score = onMetal(r);
+          log(`  engraving frame ${frame}: on the buckle ${(score * 100).toFixed(0)}%`);
+          if (!best || score > best.score + 1e-3) best = { mapper: m, uv: r, score };
+        }
+        ({ mapper, uv } = best);
+      }
+      // the text must read the right way round on the plate, whichever way the slot was made
+      const ax = axesFromMapper(mapper.forward, mapper.width, mapper.height);
+      const bad = axesProblems(ax);
+      log(`  engraving reads at ${ax.reading.toFixed(0)} deg, lines step at ${ax.lines.toFixed(0)} deg${ax.mirrored ? ', mirrored' : ''}`);
+      if (bad.length) {
+        throw new Error(`${name}: the engraving would come out ${bad.join(', ')}. Draw this buckle's plate in templates/engraving-surfaces.json (${id} / ${slot.slot}), corners in reading order.`);
+      }
+      // laser marking only lands on metal: where the slot runs past the buckle, nothing is drawn
       const a = new Float32Array(OW * OH);
-      for (let i = 0; i < a.length; i++) a[i] = uv.hit[i];
+      for (let i = 0; i < a.length; i++) a[i] = uv.hit[i] * metal[i];
       const box = bbox(a);
       const [sx, sy] = opt('--engrave-shift', '0,0').split(',').map(Number);
       const shift = (ref) => ({ ...ref, x: ref.x + sx, y: ref.y + sy });
@@ -483,7 +544,7 @@ async function main() {
     // new background plates: soften + lift toward studio white, then the baked shadows multiply in
     bgBlur: 6,
     bgLift: 0.2,
-    source: { psd: path.relative(fromRoot(), psdFile).replace(/\\/g, '/'), crop: [CX, CY, CW, CH], ...(opt('--engrave-shift') ? { engraveShift: opt('--engrave-shift').split(',').map(Number) } : {}) },
+    source: { psd: path.relative(fromRoot(), psdFile).replace(/\\/g, '/'), crop: [CX, CY, CW, CH], ...(opt('--engrave-shift') ? { engraveShift: opt('--engrave-shift').split(',').map(Number) } : {}), ...(Object.keys(engravingPlates).length ? { engravingPlates: 'templates/engraving-surfaces.json' } : {}) },
     slots,
     layered: {
       below: `poc/templates/${id}/below.png`,

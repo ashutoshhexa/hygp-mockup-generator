@@ -14,6 +14,8 @@
  *                       "Color: collar N"): base layers are renamed, every piece is numbered
  *                       after the collar base it sits on, and engraving layers named
  *                       "Design: buckle /collar N (engraved)" get the importer's spelling
+ *   --drop-engraving N  leave out collar N's engraving layer ("all" for every one): for a buckle
+ *                       seen end-on, where the engraved plate faces away from the camera
  *   --prune-slots       drop collar slots that ended up with no layers (a two-collar PSD
  *                       otherwise keeps an empty third slot)
  */
@@ -21,12 +23,12 @@ const fs = require('fs');
 const agPsd = require('ag-psd');
 const { fromRoot } = require('../paths');
 
-const OWN = { '--no-memory-limit': 0, '--collar-by-base': 0, '--prune-slots': 0 };
+const OWN = { '--no-memory-limit': 0, '--collar-by-base': 0, '--prune-slots': 0, '--drop-engraving': 1 };
 const own = {};
 const rest = [];
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i++) {
-  if (argv[i] in OWN) { own[argv[i]] = true; continue; }
+  if (argv[i] in OWN) { own[argv[i]] = OWN[argv[i]] ? argv[++i] : true; continue; }
   rest.push(argv[i]);
 }
 const id = rest[1];
@@ -53,6 +55,14 @@ function adjust(psd) {
     }
   }
 
+  const drop = own['--drop-engraving'];
+  if (drop) {
+    for (const l of all) {
+      if (!/^Design: buckle .*\(engraved\)/.test(l.name || '')) continue;
+      const m = NUM.exec(l.name);
+      if (drop === 'all' || (m && m[1] === drop)) l.name = `dropped: ${l.name}`;
+    }
+  }
   return psd;
 }
 
