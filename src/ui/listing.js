@@ -39,7 +39,24 @@
     'single-collar-side': { id: 'side', template: 'single-collar-side' }, // one collar, side view
     'single-collar-three-quarter': { id: 'three-quarter', template: 'single-collar-three-quarter' }, // side three-quarter view
   };
-  const pageDef = PAGES[location.pathname.replace(/^\/|\/$/g, '')];
+  // /single-collar holds all three views; ?view= picks one (the old side / three-quarter routes redirect here)
+  const VIEWS = { default: 'single-collar', side: 'single-collar-side', 'three-quarter': 'single-collar-three-quarter' };
+  const routeName = location.pathname.replace(/^\/|\/$/g, '');
+  const viewKey = routeName === 'single-collar' && VIEWS[new URLSearchParams(location.search).get('view')] ? new URLSearchParams(location.search).get('view') : 'default';
+  const pageDef = PAGES[routeName === 'single-collar' ? VIEWS[viewKey] : routeName];
+  if (routeName === 'single-collar') {
+    const label = document.createElement('label');
+    label.className = 'view-picker';
+    label.style.cssText = 'margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;';
+    const select = document.createElement('select');
+    select.setAttribute('aria-label', 'Collar view');
+    for (const [key, text] of [['default', 'Default'], ['side', 'Side'], ['three-quarter', 'Three-quarter']]) {
+      select.append(new Option(text, key, false, key === viewKey));
+    }
+    select.onchange = () => { location.assign(select.value === 'default' ? '/single-collar' : `/single-collar?view=${select.value}`); };
+    label.append('View', select);
+    document.querySelector('header.bar')?.append(label);
+  }
   const PAGE = pageDef
     ? { id: pageDef.id, frame: { id: pageDef.id, label: 'Main photo', template: pageDef.template, background: 'decision' } }
     : null;

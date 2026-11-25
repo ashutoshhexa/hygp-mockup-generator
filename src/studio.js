@@ -222,7 +222,9 @@ async function handle(req, res) {
       if (req.method === 'POST' && p === '/api/decision') return sendJson(res, 200, { ok: true });
     }
     if (req.method === 'GET' && (p === '/' || p === '/index.html')) return sendFile(res, path.join(__dirname, 'ui', 'index.html'));
-    if (req.method === 'GET' && /^\/(listing|single-collar|single-collar-side|single-collar-three-quarter)\/?$/.test(p)) return sendFile(res, path.join(__dirname, 'ui', 'listing.html'));
+    const oldView = req.method === 'GET' && p.match(/^\/single-collar-(side|three-quarter)\/?$/);
+    if (oldView) { res.writeHead(302, { Location: `/single-collar?view=${oldView[1]}` }); return res.end(); }
+    if (req.method === 'GET' && /^\/(listing|single-collar)\/?$/.test(p)) return sendFile(res, path.join(__dirname, 'ui', 'listing.html'));
     if (req.method === 'GET' && p.startsWith('/ui/')) {
       const f = safeJoin(path.join(__dirname, 'ui'), p.slice(4));
       return f ? sendFile(res, f) : sendJson(res, 400, { error: 'bad path' });
