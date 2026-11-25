@@ -40,10 +40,10 @@
     'single-collar-three-quarter': { id: 'three-quarter', template: 'single-collar-three-quarter' }, // side three-quarter view
     'single-collar-back': { id: 'back', template: 'single-collar-back' }, // Back (buckle behind) (psdFiles)
     'single-collar-angled': { id: 'angled', template: 'single-collar-angled' }, // Angled (keeper in front) (psdFiles)
-    'single-collar-low-side': { id: 'low-side', template: 'single-collar-low-side' }, // Low side (buckle left) (psdFiles)
+    'single-collar-low-side': { id: 'low-side', template: 'single-collar-low-side', noEngraving: ['collar'] }, // Low side (buckle left) (psdFiles)
     'single-collar-stack': { id: 'stack', template: 'single-collar-stack' }, // Three collars, stacked (PSD (10), separate copy from /listing's)
     'single-collar-buckle-front': { id: 'buckle-front', template: 'single-collar-buckle-front' }, // Front (buckle forward) (PSD (4))
-    'single-collar-pair-stacked': { id: 'pair-stacked', template: 'single-collar-pair-stacked' }, // Two collars, stacked (PSD (11))
+    'single-collar-pair-stacked': { id: 'pair-stacked', template: 'single-collar-pair-stacked', noEngraving: ['top'] }, // Two collars, stacked (PSD (11))
     'single-collar-pair-angled': { id: 'pair-angled', template: 'single-collar-pair-angled' }, // Two collars, angled (PSD (6))
   };
   // /single-collar holds every single-collar view; ?view= picks one (the old side / three-quarter routes redirect here)
@@ -112,6 +112,13 @@
     return list;
   }
   const single = () => collars().length === 1;
+  // Collars whose buckle this view shows without engraving (seen end-on; see
+  // templates/engraving-surfaces.json): they get no name controls. Every other page: all collars.
+  const engraved = () => {
+    const off = (pageDef && pageDef.noEngraving) || [];
+    const slots = state.template.slots;
+    return collars().filter((c) => !off.includes(Object.keys(slots).find((k) => slots[k].collar === c.index)));
+  };
 
   /* ---------------- render ---------------- */
   let inFlight = 0;
@@ -723,25 +730,29 @@
         el('label', { class: 'field grow', for: `${id}-name` }, el('span', {}, 'Pet name'), nameInput),
         el('div', { class: 'field grow phone' }, el('label', { for: `${id}-phone` }, 'Phone number'), el('div', { class: 'inline' }, phoneInput, newNumber))),
       el('div', { class: 'field' },
-        el('div', { class: 'label-row' }, el('label', { for: `${id}-l3` }, 'Line 3 ', el('small', { class: 'opt' }, 'optional')), single() ? null : line3ForAll),
+        el('div', { class: 'label-row' }, el('label', { for: `${id}-l3` }, 'Line 3 ', el('small', { class: 'opt' }, 'optional')), engraved().length === 1 ? null : line3ForAll),
         line3Input),
-      el('div', { class: 'field' }, el('div', { class: 'label-row' }, el('span', {}, 'Lettering'), single() ? null : sameForAll), current, grid),
+      el('div', { class: 'field' }, el('div', { class: 'label-row' }, el('span', {}, 'Lettering'), engraved().length === 1 ? null : sameForAll), current, grid),
       el('label', { class: 'field', for: `${id}-pf` }, el('span', {}, 'Phone number (and line 3) lettering'), phoneStyle));
     return card;
   }
 
   function renderNames() {
+    const list = engraved();
+    // no buckle in this view is engraved: no names step at all
+    $('#namesBody').closest('details').hidden = !list.length;
+    if (!list.length) { $('#namesBody').replaceChildren(); return; }
     $('#namesBody').replaceChildren(
-      el('p', { class: 'help' }, `Made-up names and 419-555 numbers, laser engraved on ${single() ? 'the' : 'each'} buckle. The lettering previews use your pet name.`),
+      el('p', { class: 'help' }, `Made-up names and 419-555 numbers, laser engraved on ${list.length === 1 ? 'the' : 'each'} buckle. The lettering previews use your pet name.`),
       nameIdeas(),
-      ...collars().map(nameCard));
+      ...list.map(nameCard));
   }
 
   /* name ideas: names that match the pattern, tap one to put it on a collar */
   const patternFilesInUse = () => [...new Set(collars().map((c) => currentPatternFor(c.index)).filter(Boolean))];
 
   function ideaTarget() {
-    const list = collars();
+    const list = engraved();
     return list.find((c) => c.index === state.nameTarget) || list[0];
   }
 
@@ -765,7 +776,7 @@
 
   function useName(name, index) {
     state.decision.listing.collars[index].name = name;
-    const list = collars();
+    const list = engraved();
     const at = list.findIndex((c) => c.index === index);
     state.nameTarget = list[(at + 1) % list.length].index; // next tap fills the next collar
     renderNames();
@@ -793,11 +804,11 @@
     const fill = el('button', {
       class: 'link', type: 'button',
       onclick: () => {
-        const list = collars();
+        const list = engraved();
         list.forEach((c, i) => { if (ideas.names[i]) state.decision.listing.collars[c.index].name = ideas.names[i]; });
         renderNames(); changed(); setStatus('Names added to all collars', 'ok');
       },
-    }, `Use the first ${Math.min(collars().length, ideas.names.length)} on all collars`);
+    }, `Use the first ${Math.min(engraved().length, ideas.names.length)} on all collars`);
     return el('div', { class: 'ideas' },
       el('div', { class: 'ideas-head' },
         el('div', {}, el('strong', {}, sparkle, ' Name ideas'), el('small', {}, ideas.theme ? `${ideas.theme}${ideas.source === 'list' ? '' : ' · AI'}` : '')),
@@ -807,8 +818,8 @@
         class: 'idea', type: 'button', title: `Put "${n}" on the ${target.short} collar`,
         onclick: () => useName(n, ideaTarget().index),
       }, n))),
-      single()
-        ? el('p', { class: 'idea-hint' }, 'Tap a name to put it on the collar')
+      engraved().length === 1
+        ? el('p', { class: 'idea-hint' }, `Tap a name to put it on the ${single() ? '' : `${target.short} `}collar`)
         : el('p', { class: 'idea-hint', id: 'ideaHint' }, `Tap a name to put it on the `, el('b', {}, `${target.short} collar`), ' · ', fill));
   }
 
@@ -875,7 +886,7 @@
     $('#sumPattern').textContent = pat;
     const finishText = `${FIN_LABEL[d.listing.centerColor]} ${single() ? 'buckle' : 'featured'}`;
     $('#sumFinish').textContent = finishText;
-    $('#sumNames').textContent = collars().map((c) => d.listing.collars[c.index].name).filter(Boolean).join(' · ');
+    $('#sumNames').textContent = engraved().map((c) => d.listing.collars[c.index].name).filter(Boolean).join(' · ');
     $('#sumBg').textContent = bgLabel();
     $('#facts').replaceChildren(
       el('span', { class: 'fact' }, el('i', { class: `metal ${d.listing.centerColor}` }), finishText),
