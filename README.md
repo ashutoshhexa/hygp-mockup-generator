@@ -63,7 +63,7 @@ images per finish. Each file is square, uses the Studio's square framing, and is
 
 | File | View |
 | --- | --- |
-| `Hero.webp` | Default single collar |
+| `Hero.webp` | Single Collar Side |
 | `listing-1.webp` | Three-quarter |
 | `listing-2.webp` | Flat, buckle closed |
 | `listing-3.webp` | Diagonal repeat |

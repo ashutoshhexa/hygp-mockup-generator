@@ -21,8 +21,9 @@ const { FINISHES, FINISH_LABELS, planFrame } = require('./mockup/plan');
 const { readJson, readTemplate, renderFrame, WEBP_MAX_BYTES } = require('./mockup/node-io');
 const { productImagesApi } = require('./product-images-api');
 
+const HERO_TEMPLATE = 'single-collar-side';
 const EXPORTS = [
-  ['Hero.webp', 'single-collar', 'decision'],
+  ['Hero.webp', HERO_TEMPLATE, 'decision'],
   ['listing-1.webp', 'single-collar-three-quarter', 'decision'],
   ['listing-2.webp', 'single-collar-flat', 'decision'],
   ['listing-3.webp', 'single-collar-diagonal', 'decision'],
@@ -150,12 +151,14 @@ async function renderPattern(pattern, out, frames, lettering) {
   const dir = path.join(out, slug ? `${pattern.id}-${slug}` : pattern.id);
   const checkpoint = path.join(dir, 'design.json');
   const saved = fs.existsSync(checkpoint) ? JSON.parse(fs.readFileSync(checkpoint, 'utf8')) : null;
+  const refreshHero = saved?.heroTemplate !== HERO_TEMPLATE;
   const refreshGuides = saved?.guideRenderVersion !== GUIDE_RENDER_VERSION;
   const files = FINISHES.flatMap((color) => frames.map((view) => ({
     ...view, color, target: path.join(dir, color, view.file),
   })));
   const existing = await Promise.all(files.map(({ target }) => completed(target)));
-  const missing = files.filter(({ frame }, index) => !existing[index] || (refreshGuides && frame.background === 'photo'));
+  const missing = files.filter(({ file, frame }, index) =>
+    !existing[index] || (refreshHero && file === 'Hero.webp') || (refreshGuides && frame.background === 'photo'));
   if (!missing.length) {
     console.log(`[${pattern.id}] ${pattern.label} · already complete`);
     return { dir, files };
@@ -172,8 +175,10 @@ async function renderPattern(pattern, out, frames, lettering) {
     fs.mkdirSync(path.dirname(target), { recursive: true });
     writeAtomic(target, webp);
   }
-  if (refreshGuides) {
-    writeAtomic(checkpoint, JSON.stringify({ ...design, guideRenderVersion: GUIDE_RENDER_VERSION }, null, 2) + '\n');
+  if (refreshHero || refreshGuides) {
+    writeAtomic(checkpoint, JSON.stringify({
+      ...design, heroTemplate: HERO_TEMPLATE, guideRenderVersion: GUIDE_RENDER_VERSION,
+    }, null, 2) + '\n');
   }
   console.log(`[${pattern.id}] wrote ${missing.length} WebP files to ${dir}`);
   return { dir, files };
