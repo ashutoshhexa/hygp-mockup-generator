@@ -37,6 +37,44 @@ node src/run.js --decision decisions/preview.json --mode uv   # print-direction 
 Per-collar patterns: set `collarPatterns: [left, middle, right]` on a decision (or use "Different per collar" in
 the UI). Empty entries fall back to `patternFile`. The leash uses the middle collar's pattern.
 
+## Batch export single-collar images
+
+```powershell
+# One catalog pattern by product ID, or pass a local image path
+npm run batch:single-collar -- --pattern 8941160759511
+
+# Build a catalog snapshot once and copy it to the devices running the batch
+npm run batch:single-collar -- --make-manifest out/single-collar-catalog.json
+
+# On device 1
+npm run batch:single-collar -- --all --manifest out/single-collar-catalog.json --part 1/2 --workers 2
+
+# On device 2
+npm run batch:single-collar -- --all --manifest out/single-collar-catalog.json --part 2/2 --workers 2
+```
+
+With no `--part`, the script exports the whole catalog. With no `--manifest`, it reads the current
+collections. Each product ID is exported once, even when it appears in multiple collections.
+`--workers` controls parallel patterns per device and defaults to one. Use the same manifest and
+part count on every device. `--out` changes the local output directory.
+
+Each pattern goes to `out/single-collar-batch/<product-id>-<pattern>/<finish>/`, with six WebP
+images per finish. Each file is capped at 50 KB and keeps its template's aspect ratio.
+
+| File | View |
+| --- | --- |
+| `Hero.webp` | Default single collar |
+| `listing-1.webp` | Three-quarter |
+| `listing-2.webp` | Flat, buckle closed |
+| `listing-3.webp` | Diagonal repeat |
+| `listing-4.webp` | Quality is in the details |
+| `listing-5.webp` | How to measure |
+
+The script uses the first suggestion from the Studio's Name ideas for each pattern, with the same
+engraving on all 18 images. Ollama is used when available, with the Studio's themed names as the
+fallback. The chosen engraving is saved in `design.json` alongside the finish folders. Rerun the
+same command to fill in missing images or replace any that exceed 50 KB.
+
 ## Generating backgrounds and dog photos
 
 ```

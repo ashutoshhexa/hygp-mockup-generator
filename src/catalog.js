@@ -18,6 +18,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { randomUUID, createHash } = require('crypto');
 
 const { cachePath } = require('./paths');
 
@@ -27,17 +28,27 @@ const PATTERN_DIR = cachePath('patterns');
 const MAX_AGE_MS = 6 * 60 * 60 * 1000;
 const PATTERN_FILE = /^cache\/patterns\/(\d+)(?:\.s([\d.]+)\.x(-?[\d.]+)\.y(-?[\d.]+))?\.png$/;
 
+function writeCacheFile(file, data) {
+  const tmp = `${file}.${randomUUID()}.part`;
+  try {
+    fs.writeFileSync(tmp, data);
+    fs.renameSync(tmp, file);
+  } finally {
+    if (fs.existsSync(tmp)) fs.unlinkSync(tmp);
+  }
+}
+
 async function cachedJson(name, url, maxAge = MAX_AGE_MS, dir = CACHE) {
   const file = path.join(dir, name);
   if (fs.existsSync(file) && Date.now() - fs.statSync(file).mtimeMs < maxAge) {
     return JSON.parse(fs.readFileSync(file, 'utf8'));
   }
   try {
-    const res = await fetch(url, { headers: { accept: 'application/json' } });
+    const res = await fetch(url, { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(30000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(file, JSON.stringify(data));
+    writeCacheFile(file, JSON.stringify(data));
     return data;
   } catch (err) {
     if (fs.existsSync(file)) return JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -80,13 +91,28 @@ async function listCollections() {
     .sort((a, b) => String(a.title).localeCompare(String(b.title), undefined, { sensitivity: 'base' }));
 }
 
-async function listPatterns(collectionId) {
+async function listPatterns(collectionId, { allPages = false } = {}) {
   if (!/^\d+$/.test(String(collectionId))) throw new Error('Bad collection id');
-  const data = await cachedJson(`products-${collectionId}.json`, `${API}/products/${collectionId}`);
-  if (data.pageInfo && data.pageInfo.hasNextPage) {
-    console.warn(`Collection ${collectionId}: more patterns than one page; showing the first ${data.products.length}.`);
+  const url = `${API}/products/${collectionId}`;
+  const key = `products-${collectionId}`;
+  let data = await cachedJson(`${key}.json`, url);
+  if (!Array.isArray(data.products)) throw new Error(`Collection ${collectionId} did not return a product list.`);
+  const products = new Map(data.products.map((p) => [String(p.id), p]));
+  while (data.pageInfo?.hasNextPage) {
+    if (!allPages) {
+      console.warn(`Collection ${collectionId}: more patterns than one page; showing the first ${data.products.length}.`);
+      break;
+    }
+    const cursor = data.pageInfo.lastCursor || data.pageInfo.endCursor;
+    if (!cursor) throw new Error(`Collection ${collectionId} reports another page without a cursor.`);
+    const previousSize = products.size;
+    const pageKey = createHash('sha256').update(cursor).digest('hex');
+    data = await cachedJson(`${key}-${pageKey}.json`, `${url}?after=${encodeURIComponent(cursor)}`);
+    if (!Array.isArray(data.products)) throw new Error(`Collection ${collectionId} did not return a product list.`);
+    for (const product of data.products) products.set(String(product.id), product);
+    if (products.size === previousSize) throw new Error(`Collection ${collectionId} did not advance to the next page.`);
   }
-  return (data.products || []).filter((p) => p.png_image).map((p) => ({
+  return [...products.values()].filter((p) => p.png_image).map((p) => ({
     id: String(p.id),
     label: String(p.name || p.id).replace(/_/g, ' ').trim(),
     thumb: p.preview || null,
@@ -96,19 +122,17 @@ async function listPatterns(collectionId) {
 }
 
 /** Make sure a catalog pattern is on disk. Local files (poc/patterns/...) pass through. */
-async function ensurePatternFile(rel) {
+async function ensurePatternFile(rel, tileUrl) {
   const lm = LEGACY_FILE.exec(String(rel || '').replace(/\\/g, '/'));
   if (lm) return ensureLegacyFile(lm[1], lm[2]);
   const m = PATTERN_FILE.exec(String(rel || '').replace(/\\/g, '/'));
   if (!m) return null;
-  const tile = await ensureTile(m[1]);
+  const tile = await ensureTile(m[1], tileUrl);
   if (m[2] == null) return tile;
   const file = path.join(PATTERN_DIR, path.basename(String(rel)));
   if (fs.existsSync(file) && fs.statSync(file).size > 0) return file;
   const png = await framePrint(tile, { scale: +m[2], tx: +m[3], ty: +m[4] });
-  const tmp = `${file}.part`;
-  fs.writeFileSync(tmp, png);
-  fs.renameSync(tmp, file);
+  writeCacheFile(file, png);
   return file;
 }
 
@@ -138,16 +162,13 @@ function mod(a, n) {
   return ((a % n) + n) % n;
 }
 
-async function ensureTile(id) {
+async function ensureTile(id, url = `https://d1ows48k9hyw72.cloudfront.net/metafields/${id}/image.png`) {
   const file = path.join(PATTERN_DIR, `${id}.png`);
   if (fs.existsSync(file) && fs.statSync(file).size > 0) return file;
-  const url = `https://d1ows48k9hyw72.cloudfront.net/metafields/${id}/image.png`;
-  const res = await fetch(url);
+  const res = await fetch(url, { signal: AbortSignal.timeout(30000) });
   if (!res.ok) throw new Error(`Could not download pattern ${id}: HTTP ${res.status}`);
   fs.mkdirSync(PATTERN_DIR, { recursive: true });
-  const tmp = `${file}.part`;
-  fs.writeFileSync(tmp, Buffer.from(await res.arrayBuffer()));
-  fs.renameSync(tmp, file);
+  writeCacheFile(file, Buffer.from(await res.arrayBuffer()));
   return file;
 }
 

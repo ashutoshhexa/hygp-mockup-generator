@@ -69,6 +69,7 @@ async function askOllama(patterns, avoid) {
   const t0 = Date.now();
   const res = await fetch(`${HOST}/api/chat`, {
     method: 'POST',
+    signal: AbortSignal.timeout(60000),
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       model: MODEL,

@@ -17,6 +17,40 @@ const { isLifestyleFile, lifestylePath } = require('../lifestyle');
 const { ensurePatternFile } = require('../catalog');
 
 const layerCache = new Map();
+const WEBP_MAX_BYTES = 50 * 1024;
+
+async function encodeWebpUnder(image, width, height) {
+  // Match the Studio's starting size and quality range. Keep reducing the
+  // dimensions if a detailed image still exceeds the cap at the lowest quality.
+  let edge = Math.min(Math.max(width, height), 1800);
+  for (;;) {
+    const { data, info } = await image.clone().resize(edge, edge, { fit: 'inside' })
+      .raw().toBuffer({ resolveWithObject: true });
+    // The resized RGB buffer has no alpha channel. Reusing Sharp's output info
+    // would also pass its premultiplied flag and treat blue as alpha.
+    const raw = { width: info.width, height: info.height, channels: info.channels };
+    const encode = (quality) => sharp(data, { raw }).webp({ quality }).toBuffer();
+    let low = 42, high = 90;
+    let best = await encode(low);
+    if (best.length <= WEBP_MAX_BYTES) {
+      const highest = await encode(high);
+      if (highest.length <= WEBP_MAX_BYTES) return highest;
+      while (high - low > 1) {
+        const quality = Math.floor((low + high) / 2);
+        const candidate = await encode(quality);
+        if (candidate.length <= WEBP_MAX_BYTES) {
+          best = candidate;
+          low = quality;
+        } else {
+          high = quality;
+        }
+      }
+      return best;
+    }
+    if (edge === 1) throw new Error('Could not encode WebP within 50 KB.');
+    edge = Math.max(1, Math.min(edge - 1, Math.round(edge * 0.88)));
+  }
+}
 
 function toRgba({ data, info }) {
   return { width: info.width, height: info.height, data: new Uint8ClampedArray(data.buffer, data.byteOffset, data.length) };
@@ -63,13 +97,13 @@ async function backgroundPng(spec, width, height) {
   return paintPreset(spec.preset, width, height);
 }
 
-async function renderFrame({ templateId, template, scale, background = null, mode = 'final', patternFile, patternFileBySlot, finishBySlot, collarBySlot, patternScale, patternScaleBySlot }) {
+async function renderFrame({ templateId, template, scale, background = null, mode = 'final', patternFile, patternFileBySlot, finishBySlot, collarBySlot, patternScale, patternScaleBySlot, format = 'png' }) {
   template = template || readTemplate(templateId);
   // layered (PSD) templates are baked at one size
   scale = template.layered ? 1 : scale || template.renderScale || 1;
   const W = Math.round(template.width * scale);
   const H = Math.round(template.height * scale);
-  const base = await loadRgba(fromRoot(template.base), W, H);
+  const base = template.layered ? null : await loadRgba(fromRoot(template.base), W, H);
   let below = null, layerData = null, metalPlates = null;
   if (template.layered) {
     const [sourceWidth, sourceHeight] = template.layered.repeat?.sourceSize || [W, H];
@@ -110,10 +144,8 @@ async function renderFrame({ templateId, template, scale, background = null, mod
   const bgPng = await backgroundPng(background, W, H);
   const bg = bgPng ? await bufferToRgba(bgPng) : null;
   const out = core.render({ template, base, below, layerData, metalPlates, pattern, patternBySlot, finishBySlot, engravingBySlot, background: bg, mode, patternScale, patternScaleBySlot });
-  return sharp(Buffer.from(out.data.buffer), { raw: { width: out.width, height: out.height, channels: 4 } })
-    .removeAlpha()
-    .png()
-    .toBuffer();
+  const image = sharp(Buffer.from(out.data.buffer), { raw: { width: out.width, height: out.height, channels: 4 } }).removeAlpha();
+  return format === 'webp' ? encodeWebpUnder(image, out.width, out.height) : image.png().toBuffer();
 }
 
 /** Render every frame in frames.json for one decision. Returns [{frame, png}] */
@@ -130,4 +162,4 @@ async function renderListing(decision, { exportScale = 2, mode = 'final' } = {})
   return results;
 }
 
-module.exports = { renderFrame, renderListing, readTemplate, readJson, loadRgba, backgroundPng };
+module.exports = { renderFrame, renderListing, readTemplate, readJson, loadRgba, backgroundPng, WEBP_MAX_BYTES };

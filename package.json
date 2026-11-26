@@ -7,6 +7,7 @@
     "studio": "node src/studio.js",
     "preview": "node src/studio.js",
     "mockup": "node src/run.js",
+    "batch:single-collar": "node src/batch-single-collar.js",
     "plates:bg": "node src/generate-plates.js --kind backgrounds",
     "plates:dogs": "node src/generate-plates.js --kind dogs"
   },
