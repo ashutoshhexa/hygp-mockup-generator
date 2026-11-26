@@ -11,9 +11,12 @@ const { loadRgba, readTemplate } = require('../mockup/node-io');
 const ID = 'infographic-hd';
 const SIZE = 2700;
 const DIR = `poc/templates/${ID}`;
-const INK = '#192d42';
-const MUTED = '#496075';
-const BACKGROUND = '#faf9f6';
+const INK = '#195b46';
+const MUTED = '#3e594e';
+const BACKGROUND = '#fcf6ed';
+const CORAL = '#ff7148';
+const MARIGOLD = '#ffb000';
+const SAGE = '#e5eee7';
 const SWATCH_CENTERS = [547, 1350, 2153];
 const SWATCH_CROPS = [140, 408, 675];
 const COLLAR_SHIFT = { x: -140, y: 270 };
@@ -34,31 +37,31 @@ function typeset(font, text, x, y, size, color = INK) {
 function artwork(serif, sans) {
   const title = (text, x, y, size) => typeset(serif, text, x, y, size);
   const label = (text, x, y, size, color) => typeset(sans, text, x, y, size, color);
-  const note = (heading, detail, x, y, w, tint = '#eef1f3') => `
+  const note = (heading, detail, x, y, w, tint = SAGE) => `
     <rect x="${x - w / 2}" y="${y}" width="${w}" height="224" rx="38" fill="${tint}"/>
     ${title(heading, x, y + 94, 66)}
     ${label(detail, x, y + 164, 50, MUTED)}`;
-  const guide = (path, x, y) => `<path d="${path}" fill="none" stroke="#8193a2" stroke-width="5"/>
-    <circle cx="${x}" cy="${y}" r="9" fill="#526c80"/>`;
+  const guide = (path, x, y) => `<path d="${path}" fill="none" stroke="#73998a" stroke-width="5"/>
+    <circle cx="${x}" cy="${y}" r="10" fill="${INK}"/>`;
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}">
     <rect width="${SIZE}" height="${SIZE}" fill="${BACKGROUND}"/>
     ${title('Quality is in the details.', 1350, 326, 176)}
-    <path d="M1180 407H1520" stroke="#8ca0ae" stroke-width="5" stroke-linecap="round"/>
+    <path d="M1180 407H1520" stroke="${CORAL}" stroke-width="12" stroke-linecap="round"/>
     ${guide('M485 774V851Q485 892 444 913L217 1030', 217, 1030)}
     ${guide('M1350 774V1050', 1350, 1050)}
     ${guide('M2215 774V833Q2215 883 2168 900L1831 1025', 1831, 1025)}
-    ${note('Deep engraving', 'Premium buckle detail', 485, 550, 680)}
+    ${note('Deep engraving', 'Premium buckle detail', 485, 550, 680, '#ffe1d3')}
     ${note('Premium woven webbing', 'Smooth & durable', 1350, 550, 825)}
-    ${note('Adjustable fit', 'Easy sizing', 2215, 550, 680)}
+    ${note('Adjustable fit', 'Easy sizing', 2215, 550, 680, '#ffedb9')}
     ${guide('M740 1542V1515Q740 1473 701 1453L489 1355', 489, 1355)}
     ${guide('M1960 1542V1520Q1960 1479 1920 1461L1644 1355', 1644, 1355)}
-    ${note('Strong metal hardware', 'Built to last', 740, 1542, 765)}
-    <rect x="1560" y="1542" width="800" height="224" rx="38" fill="#edf1e9"/>
+    ${note('Strong metal hardware', 'Built to last', 740, 1542, 765, '#ffe1d3')}
+    <rect x="1540" y="1542" width="840" height="224" rx="38" fill="${SAGE}"/>
     ${title('Recycled webbing material', 1960, 1676, 62)}
-    <path d="M160 1916H670M2030 1916H2540" stroke="#a8b5bf" stroke-width="3"/>
+    <path d="M160 1916H670M2030 1916H2540" stroke="${MARIGOLD}" stroke-width="7" stroke-linecap="round"/>
     ${title('Three hardware finishes', 1350, 1943, 102)}
     ${SWATCH_CENTERS.map((x, i) => `
-      <rect x="${x - 343}" y="2040" width="686" height="486" rx="44" fill="#f2f1ed"/>
+      <rect x="${x - 343}" y="2040" width="686" height="486" rx="44" fill="#f2f1ed" stroke="#e5d8c6" stroke-width="3"/>
       ${label(['Gold', 'Rose Gold', 'Silver'][i], x, 2465, 61)}
     `).join('')}
   </svg>`);
