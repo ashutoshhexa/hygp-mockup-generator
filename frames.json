@@ -2,7 +2,7 @@
   "sideOrder": ["gold", "rosegold", "silver"],
   "frames": [
     { "id": "hero", "label": "Main photo", "caption": "3 collars from the layered PSD, on the chosen background", "file": "01-hero.png", "template": "creatsy-stack", "background": "decision" },
-    { "id": "colors", "label": "Details & finishes", "caption": "Infographic with the center finish on the collar", "file": "02-details.png", "template": "infographic", "background": "photo" },
+    { "id": "colors", "label": "Details & finishes", "caption": "Infographic with the center finish on the collar", "file": "02-details.png", "template": "infographic-hd", "background": "photo" },
     { "id": "dog", "label": "On a dog", "caption": "Lifestyle shot on the park path", "file": "03-dog.png", "template": "dog-park", "background": "photo" }
   ]
 }

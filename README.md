@@ -30,8 +30,8 @@ node src/run.js --decision decisions/preview.json --mode uv   # print-direction 
 
 1. **Main photo**: `templates/creatsy-stack.json`, 3 collars imported from the layered Creatsy PSD, on the chosen
    background (the older hand-traced `studio-stack.json` with the leash is still available).
-2. **Details & finishes**: `templates/infographic.json`. The collar gets the pattern and center finish. The three
-   buckles at the bottom are already gold, rose gold and silver, so they're left alone.
+2. **Details & finishes**: `templates/infographic-hd.json`. The layered collar gets the pattern, center finish and
+   engraving. The three finish samples are fixed. Rebuild the 2700 px artwork with `node src/tools/build-details-card.js`.
 3. **On a dog**: `templates/dog-park.json` for now. It will be replaced by a generated dog wearing a plain white collar (below).
 
 Per-collar patterns: set `collarPatterns: [left, middle, right]` on a decision (or use "Different per collar" in
