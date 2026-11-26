@@ -344,14 +344,23 @@
       await idle(); // never download a frame that is still being updated
       const photo = $('#photo');
       const canvas = shape === 'square' ? squareCanvas(photo) : photo;
-      const blob = await new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not encode the photo'))), type, 0.95));
-      const ext = type === 'image/png' ? 'png' : 'jpg';
+      let blob;
+      let out = canvas;
+      if (type === 'image/webp') {
+        const enc = await window.DownloadWebp.encodeUnder(canvas);
+        blob = enc.blob;
+        out = enc.canvas;
+      } else {
+        blob = await new Promise((resolve, reject) => canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('Could not encode the photo'))), type, 0.95));
+      }
+      const ext = type === 'image/png' ? 'png' : type === 'image/webp' ? 'webp' : 'jpg';
       const a = el('a', { href: URL.createObjectURL(blob), download: `${slug(state.decision.patternLabel)}-main-photo${shape === 'square' ? '-square' : ''}.${ext}` });
       document.body.append(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 10000);
-      setStatus(`Downloaded ${canvas.width} × ${canvas.height} ${ext.toUpperCase()} · ${(blob.size / 1048576).toFixed(1)} MB`, 'ok');
+      const size = type === 'image/webp' ? window.DownloadWebp.formatBytes(blob.size) : `${(blob.size / 1048576).toFixed(1)} MB`;
+      setStatus(`Downloaded ${out.width} × ${out.height} ${ext.toUpperCase()} · ${size}`, 'ok');
     } catch (err) {
       setStatus(err.message, 'err');
     } finally {
