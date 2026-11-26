@@ -99,7 +99,10 @@ function artwork(serif, sans) {
 async function main() {
   const [serif, sans] = await Promise.all([loadFont('DM Serif'), loadFont('Roboto')]);
   const art = await sharp(artwork(serif, sans)).ensureAlpha().raw().toBuffer();
-  await writeOpenCollarCard({ id: ID, name: 'How to measure', size: SIZE, art, shift: { x: 0, y: 12 + MEASUREMENT_OFFSET }, collar: 0 });
+  await writeOpenCollarCard({
+    id: ID, name: 'How to measure', size: SIZE, art,
+    shift: { x: 0, y: 12 + MEASUREMENT_OFFSET }, collar: 0, includeRoseGoldShades: true,
+  });
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });

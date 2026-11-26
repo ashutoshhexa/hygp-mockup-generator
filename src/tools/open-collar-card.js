@@ -1,6 +1,7 @@
 'use strict';
 
 const fs = require('fs');
+const path = require('path');
 const sharp = require('sharp');
 const { fromRoot } = require('../paths');
 const { renderLayered } = require('../mockup/core');
@@ -39,7 +40,28 @@ function layDownShadows(art, below, size, shift) {
   }
 }
 
-async function writeOpenCollarCard({ id, name, size, art, shift, collar }) {
+async function copyRoseGoldShades(source, dir, size, shift) {
+  const { alpha } = source.layered.stack.find((op) => op.slot === 'top' && op.role === 'metal');
+  const { x, y, w, h } = alpha;
+  const options = [];
+  let defaultPlate;
+  for (const option of source.layered.metalPlateOptions.rosegold) {
+    const file = `${dir}/${path.basename(option.file)}`;
+    const input = await sharp(fromRoot(option.file))
+      .extract({ left: x, top: y, width: w, height: h }).png().toBuffer();
+    await sharp({ create: { width: size, height: size, channels: 4, background: '#00000000' } })
+      .composite([{ input, left: x + shift.x, top: y + shift.y }])
+      .png().toFile(fromRoot(file));
+    options.push({ label: option.label, file });
+    if (option.file === source.layered.metalPlates.rosegold) defaultPlate = file;
+  }
+  return {
+    metalPlates: { rosegold: defaultPlate },
+    metalPlateOptions: { rosegold: options },
+  };
+}
+
+async function writeOpenCollarCard({ id, name, size, art, shift, collar, includeRoseGoldShades = false }) {
   const source = readTemplate('single-collar-flat-pair');
   const sourceBelow = await loadRgba(fromRoot(source.layered.below));
   layDownShadows(art, sourceBelow, size, shift);
@@ -75,6 +97,7 @@ async function writeOpenCollarCard({ id, name, size, art, shift, collar }) {
   const photo = renderLayered({ template: reference, below: { data: art }, layerData });
   const raw = { width: size, height: size, channels: 4 };
   fs.mkdirSync(fromRoot(dir), { recursive: true });
+  if (includeRoseGoldShades) Object.assign(template.layered, await copyRoseGoldShades(source, dir, size, shift));
   await Promise.all([
     sharp(art, { raw }).removeAlpha().png().toFile(fromRoot(template.layered.below)),
     sharp(photo.data, { raw }).removeAlpha().png().toFile(fromRoot(template.base)),

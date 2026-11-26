@@ -1354,7 +1354,34 @@
      "offset": 6935190
     }
    }
-  ]
+  ],
+  "metalPlates": {
+   "rosegold": "poc/templates/single-collar-how-to-measure/metal-rosegold-rich.png"
+  },
+  "metalPlateOptions": {
+   "rosegold": [
+    {
+     "label": "Blush (original)",
+     "file": "poc/templates/single-collar-how-to-measure/metal-rosegold.png"
+    },
+    {
+     "label": "Rose",
+     "file": "poc/templates/single-collar-how-to-measure/metal-rosegold-rich.png"
+    },
+    {
+     "label": "Copper Rose",
+     "file": "poc/templates/single-collar-how-to-measure/metal-rosegold-rich2.png"
+    },
+    {
+     "label": "Warm Copper",
+     "file": "poc/templates/single-collar-how-to-measure/metal-rosegold-rich3.png"
+    },
+    {
+     "label": "Deep Copper",
+     "file": "poc/templates/single-collar-how-to-measure/metal-rosegold-rich4.png"
+    }
+   ]
+  }
  },
  "layers": []
 }
