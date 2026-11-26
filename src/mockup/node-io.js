@@ -18,19 +18,26 @@ const { ensurePatternFile } = require('../catalog');
 
 const layerCache = new Map();
 const WEBP_MAX_BYTES = 50 * 1024;
+const WEBP_MIN_SQUARE_EDGE = 1025;
+const WEBP_PREFERRED_SQUARE_EDGE = 1500;
 
-async function encodeWebpUnder(image, width, height) {
-  // Match the Studio's starting size and quality range. Keep reducing the
-  // dimensions if a detailed image still exceeds the cap at the lowest quality.
+async function encodeWebpUnder(image, width, height, square) {
+  const minEdge = square ? WEBP_MIN_SQUARE_EDGE : 1;
+  const preferredEdge = square ? WEBP_PREFERRED_SQUARE_EDGE : 0;
   let edge = Math.min(Math.max(width, height), 1800);
+  const options = square ? { preset: 'picture', smartSubsample: true, effort: 5 } : {};
+  if (edge < minEdge) throw new Error(`Square WebP source must be at least ${minEdge} × ${minEdge} px.`);
   for (;;) {
     const { data, info } = await image.clone().resize(edge, edge, { fit: 'inside' })
       .raw().toBuffer({ resolveWithObject: true });
     // The resized RGB buffer has no alpha channel. Reusing Sharp's output info
     // would also pass its premultiplied flag and treat blue as alpha.
     const raw = { width: info.width, height: info.height, channels: info.channels };
-    const encode = (quality) => sharp(data, { raw }).webp({ quality }).toBuffer();
-    let low = 42, high = 90;
+    const encode = (quality) => sharp(data, { raw }).webp({ ...options, quality }).toBuffer();
+    // Give the recommended size a chance before resizing, and keep the
+    // minimum resolution even for an unusually detailed pattern.
+    let low = square && edge === minEdge ? 1 : edge === preferredEdge ? 30 : 42;
+    let high = 90;
     let best = await encode(low);
     if (best.length <= WEBP_MAX_BYTES) {
       const highest = await encode(high);
@@ -47,8 +54,12 @@ async function encodeWebpUnder(image, width, height) {
       }
       return best;
     }
-    if (edge === 1) throw new Error('Could not encode WebP within 50 KB.');
-    edge = Math.max(1, Math.min(edge - 1, Math.round(edge * 0.88)));
+    if (edge === minEdge) {
+      const resolution = square ? ` at ${minEdge} × ${minEdge} px` : '';
+      throw new Error(`Could not encode WebP within 50 KB${resolution}.`);
+    }
+    const next = Math.max(minEdge, Math.min(edge - 1, Math.round(edge * 0.88)));
+    edge = edge > preferredEdge && next < preferredEdge ? preferredEdge : next;
   }
 }
 
@@ -149,7 +160,7 @@ async function renderFrame({ templateId, template, scale, background = null, mod
   const raw = { width: source.width, height: source.height, channels: 4 };
   const image = sharp(Buffer.from(source.data.buffer), { raw }).removeAlpha();
   if (crop) image.extract({ left: crop.left, top: crop.top, width: crop.size, height: crop.size });
-  return format === 'webp' ? encodeWebpUnder(image, crop?.size ?? out.width, crop?.size ?? out.height) : image.png().toBuffer();
+  return format === 'webp' ? encodeWebpUnder(image, crop?.size ?? out.width, crop?.size ?? out.height, square) : image.png().toBuffer();
 }
 
 /** Render every frame in frames.json for one decision. Returns [{frame, png}] */
@@ -166,4 +177,7 @@ async function renderListing(decision, { exportScale = 2, mode = 'final' } = {})
   return results;
 }
 
-module.exports = { renderFrame, renderListing, readTemplate, readJson, loadRgba, backgroundPng, WEBP_MAX_BYTES };
+module.exports = {
+  renderFrame, renderListing, readTemplate, readJson, loadRgba, backgroundPng,
+  WEBP_MAX_BYTES, WEBP_MIN_SQUARE_EDGE, WEBP_PREFERRED_SQUARE_EDGE,
+};

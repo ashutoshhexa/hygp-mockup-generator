@@ -18,7 +18,9 @@ const { suggestNames } = require('./name-ideas-ollama');
 const { randomPhone } = require('./engraving');
 const { PHONE_FONT } = require('./fonts');
 const { FINISHES, planFrame } = require('./mockup/plan');
-const { readJson, readTemplate, renderFrame, WEBP_MAX_BYTES } = require('./mockup/node-io');
+const {
+  readJson, readTemplate, renderFrame, WEBP_MAX_BYTES, WEBP_MIN_SQUARE_EDGE, WEBP_PREFERRED_SQUARE_EDGE,
+} = require('./mockup/node-io');
 const { productImagesApi } = require('./product-images-api');
 
 const HERO_TEMPLATE = 'single-collar-side';
@@ -31,6 +33,7 @@ const EXPORTS = [
   ['listing-5.webp', 'single-collar-how-to-measure', 'photo'],
 ];
 const GUIDE_RENDER_VERSION = 1;
+const WEBP_RESOLUTION_VERSION = 1;
 
 const USAGE = `Usage:
   npm run batch:single-collar -- --pattern <product-id-or-local-image> [--manifest <file>] [--out <folder>] [--upload]
@@ -117,12 +120,12 @@ function plannedFrames() {
   });
 }
 
-async function completed(file) {
+async function completed(file, minEdge) {
   const size = fs.statSync(file, { throwIfNoEntry: false })?.size;
   if (!(size > 0 && size <= WEBP_MAX_BYTES)) return false;
   try {
     const { format, width, height } = await sharp(fs.readFileSync(file)).metadata();
-    return format === 'webp' && width === height;
+    return format === 'webp' && width === height && width >= minEdge;
   } catch {
     return false;
   }
@@ -153,10 +156,12 @@ async function renderPattern(pattern, out, frames, lettering) {
   const saved = fs.existsSync(checkpoint) ? JSON.parse(fs.readFileSync(checkpoint, 'utf8')) : null;
   const refreshHero = saved?.heroTemplate !== HERO_TEMPLATE;
   const refreshGuides = saved?.guideRenderVersion !== GUIDE_RENDER_VERSION;
+  const refreshResolution = saved?.webpResolutionVersion !== WEBP_RESOLUTION_VERSION;
+  const minEdge = refreshResolution ? WEBP_PREFERRED_SQUARE_EDGE : WEBP_MIN_SQUARE_EDGE;
   const files = FINISHES.flatMap((color) => frames.map((view) => ({
     ...view, color, target: path.join(dir, color, view.file),
   })));
-  const existing = await Promise.all(files.map(({ target }) => completed(target)));
+  const existing = await Promise.all(files.map(({ target }) => completed(target, minEdge)));
   const missing = files.filter(({ file, frame }, index) =>
     !existing[index] || (refreshHero && file === 'Hero.webp') || (refreshGuides && frame.background === 'photo'));
   if (!missing.length) {
@@ -175,9 +180,10 @@ async function renderPattern(pattern, out, frames, lettering) {
     fs.mkdirSync(path.dirname(target), { recursive: true });
     writeAtomic(target, webp);
   }
-  if (refreshHero || refreshGuides) {
+  if (refreshHero || refreshGuides || refreshResolution) {
     writeAtomic(checkpoint, JSON.stringify({
       ...design, heroTemplate: HERO_TEMPLATE, guideRenderVersion: GUIDE_RENDER_VERSION,
+      webpResolutionVersion: WEBP_RESOLUTION_VERSION,
     }, null, 2) + '\n');
   }
   console.log(`[${pattern.id}] wrote ${missing.length} WebP files to ${dir}`);

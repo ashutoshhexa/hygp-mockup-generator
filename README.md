@@ -60,6 +60,9 @@ part count on every device. `--out` changes the local output directory.
 
 Each pattern goes to `out/single-collar-batch/<product-id>-<pattern>/<finish>/`, with six WebP
 images per finish. Each file is square, uses the Studio's square framing, and is capped at 50 KB.
+The batch targets at least 1500 × 1500 px and uses 1025 × 1025 px as its minimum when the byte
+limit requires a smaller image. See [Google's product image guidance](https://support.google.com/merchants/answer/6324350).
+The `max-image-preview:large` robots directive applies to the public storefront product pages.
 
 | File | View |
 | --- | --- |
@@ -73,7 +76,7 @@ images per finish. Each file is square, uses the Studio's square framing, and is
 The script uses the first suggestion from the Studio's Name ideas for each pattern, with the same
 engraving on all 18 images. Ollama is used when available, with the Studio's themed names as the
 fallback. The chosen engraving is saved in `design.json` alongside the finish folders. Rerun the
-same command to fill in missing images or replace any that are non-square or exceed 50 KB.
+same command to fill in missing images or refresh older, undersized exports.
 
 ### Upload to Shopify
 
