@@ -202,14 +202,15 @@
     let belowKey = null, binKey = null;
     const plateKeys = {};
     if (template.layered) {
+      const [sourceWidth, sourceHeight] = template.layered.repeat?.sourceSize || [W, H];
       [belowKey, binKey] = await Promise.all([
-        ensurePixels(`/files/${template.layered.below}`, W, H, 'fill'),
+        ensurePixels(`/files/${template.layered.below}`, sourceWidth, sourceHeight, 'fill'),
         ensureBin(`/files/${template.layered.bin}`),
       ]);
       // baked metal plates, only for the finishes in use
       const used = new Set(Object.values(plan.finishBySlot || {}));
       await Promise.all(Object.entries(template.layered.metalPlates || {}).map(async ([fin, file]) => {
-        if (used.has(fin)) plateKeys[fin] = await ensurePixels(`/files/${file}`, W, H, 'fill');
+        if (used.has(fin)) plateKeys[fin] = await ensurePixels(`/files/${file}`, sourceWidth, sourceHeight, 'fill');
       }));
     }
     const id = nextId++;

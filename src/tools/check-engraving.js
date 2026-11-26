@@ -21,6 +21,7 @@ const sharp = require('sharp');
 const { fromRoot } = require('../paths');
 const plan = require('../mockup/plan');
 const { renderFrame, readTemplate } = require('../mockup/node-io');
+const { repeatTransform } = require('../mockup/core');
 const { axesFromUV, axesProblems } = require('./engraving-axes');
 
 const NAMES = [{ name: 'Frosty', phone: '419-555-0173' }, { name: 'Maximilian Barkington', phone: '419-555-0173' }];
@@ -54,8 +55,32 @@ function slotData(template, bin) {
       sum += a; on += Math.min(a, metal(ax, ay));
     }
     const ax = axesFromUV(pts);
+    const repeat = template.layered.repeat;
+    if (repeat) {
+      const turn = (angle) => Math.atan2(Math.sin(angle * Math.PI / 180), Math.cos(angle * Math.PI / 180)) * 180 / Math.PI;
+      ax.reading = turn(ax.reading + repeat.angle);
+      ax.lines = turn(ax.lines + repeat.angle);
+    }
     return { slot: op.slot, box: op.alpha, axes: ax, problems: axesProblems(ax), onMetal: sum ? on / sum : 0 };
   });
+}
+
+function visibleBox(template, box) {
+  const repeat = template.layered.repeat;
+  if (!repeat) return box;
+  const tile = repeat.tiles.find(({ crop: [x, y, w, h] }) => box.x >= x && box.x + box.w <= x + w && box.y >= y && box.y + box.h <= y + h);
+  const { width, height } = template;
+  const boxes = tile.positions.map((position) => {
+    const { forward } = repeatTransform({ ...tile, angle: repeat.angle }, position);
+    const corners = [[box.x, box.y], [box.x + box.w, box.y], [box.x, box.y + box.h], [box.x + box.w, box.y + box.h]]
+      .map(([x, y]) => forward(x, y));
+    const xs = corners.map(([x]) => x), ys = corners.map(([, y]) => y);
+    const x = Math.floor(Math.min(...xs)), y = Math.floor(Math.min(...ys));
+    return { x, y, w: Math.ceil(Math.max(...xs)) - x, h: Math.ceil(Math.max(...ys)) - y };
+  });
+  const distance = ({ x, y }) => Math.hypot(x - width / 2, y - height / 2);
+  return boxes.filter(({ x, y, w, h }) => x >= 0 && y >= 0 && x + w <= width && y + h <= height)
+    .sort((a, b) => distance(a) - distance(b))[0];
 }
 
 async function renderWith(templateId, template, names) {
@@ -90,10 +115,12 @@ async function main() {
       console.log(`${id.padEnd(30)} ${s.slot.padEnd(7)} reads ${s.axes.reading.toFixed(0).padStart(4)} deg, lines ${s.axes.lines.toFixed(0).padStart(4)} deg, ` +
         `on metal ${(s.onMetal * 100).toFixed(0).padStart(3)}%  ${ok ? 'ok' : 'FAIL ' + [...s.problems, s.onMetal <= 0.98 ? 'off the buckle' : ''].filter(Boolean).join(', ')}`);
       // crop around the slot, padded, the same box in both renders
-      const pad = Math.max(60, Math.round(Math.max(s.box.w, s.box.h) * 0.35));
+      const box = visibleBox(template, s.box);
+      if (!box) continue;
+      const pad = Math.max(60, Math.round(Math.max(box.w, box.h) * 0.35));
       const W = renders[0].info.width, H = renders[0].info.height;
-      const left = Math.max(0, s.box.x - pad), top = Math.max(0, s.box.y - pad);
-      const width = Math.min(W - left, s.box.w + 2 * pad), height = Math.min(H - top, s.box.h + 2 * pad);
+      const left = Math.max(0, box.x - pad), top = Math.max(0, box.y - pad);
+      const width = Math.min(W - left, box.w + 2 * pad), height = Math.min(H - top, box.h + 2 * pad);
       const crops = await Promise.all(renders.map((r) => sharp(r.data, { raw: r.info }).extract({ left, top, width, height }).resize(300, 300, { fit: 'contain', background: '#fff' }).png().toBuffer()));
       rows.push({ label: `${id.replace('single-collar', 'view').replace(/^view$/, 'view-default')} / ${s.slot}  reads ${s.axes.reading.toFixed(0)}°  metal ${(s.onMetal * 100).toFixed(0)}%  ${ok ? 'OK' : 'FAIL'}`, crops });
     }

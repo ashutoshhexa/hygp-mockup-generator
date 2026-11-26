@@ -1253,7 +1253,88 @@
     return out;
   }
 
-  const renderAny = (opts) => (opts.template && opts.template.layered ? renderLayered(opts) : render(opts));
+  function repeatTransform(repeat, [left, top]) {
+    const radians = repeat.angle * Math.PI / 180;
+    const c = Math.cos(radians) * repeat.scale, s = Math.sin(radians) * repeat.scale;
+    const [ox, oy] = repeat.origin;
+    return {
+      forward: (x, y) => [left + (x - ox) * c - (y - oy) * s, top + (x - ox) * s + (y - oy) * c],
+      inverse: (x, y) => [ox + ((x - left) * c + (y - top) * s) / repeat.scale ** 2,
+        oy + ((y - top) * c - (x - left) * s) / repeat.scale ** 2],
+    };
+  }
 
-  return { render: renderAny, renderLayered, uvChecker, FINISH_RAMPS, densifyRungs, quadInverse };
+  function repeatTile(source, below, layerData, placement) {
+    const [left, top, width, height] = placement.crop;
+    const tile = makeImage(width, height);
+    const m = placement.matte;
+    const alpha = new Uint8Array(layerData.buffer, layerData.byteOffset + m.offset, m.w * m.h);
+    for (let y = top; y < top + height; y++) {
+      const row = y * source.width * 4;
+      const ground = (below.data[row + left * 4] + below.data[row + (left + width - 1) * 4]) / 2;
+      for (let x = left; x < left + width; x++) {
+        const i = row + x * 4, j = ((y - top) * width + x - left) * 4;
+        const inMatte = x >= m.x && x < m.x + m.w && y >= m.y && y < m.y + m.h;
+        const a = inMatte ? alpha[(y - m.y) * m.w + x - m.x] / 255 : 0;
+        const shadow = Math.min(1, (below.data[i] + 2) / Math.max(1, ground));
+        // Store the collar's premultiplied color and how much of the ground shows through.
+        for (let k = 0; k < 3; k++) tile.data[j + k] = clamp(source.data[i + k] - below.data[i + k] * (1 - a), 0, a * 255);
+        tile.data[j + 3] = (1 - a) * shadow * 255;
+      }
+    }
+
+    return tile;
+  }
+
+  function paintRepeatTile(out, tile, placement, angle) {
+    const { width: W, height: H } = out;
+    const [left, top, width, height] = placement.crop;
+    const sample = [0, 0, 0, 0];
+    for (const position of placement.positions) {
+      const { forward, inverse } = repeatTransform({ ...placement, angle }, position);
+      const corners = [[left, top], [left + width, top], [left, top + height], [left + width, top + height]]
+        .map(([x, y]) => forward(x, y));
+      const xs = corners.map(([x]) => x), ys = corners.map(([, y]) => y);
+      const x0 = Math.max(0, Math.floor(Math.min(...xs))), x1 = Math.min(W, Math.ceil(Math.max(...xs)));
+      const y0 = Math.max(0, Math.floor(Math.min(...ys))), y1 = Math.min(H, Math.ceil(Math.max(...ys)));
+      for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+        const [sx, sy] = inverse(x, y);
+        const tx = sx - left, ty = sy - top;
+        if (tx < 0 || tx >= width || ty < 0 || ty >= height) continue;
+        sampleBilinear(tile, tx, ty, false, sample);
+        const j = (y * W + x) * 4, transmission = sample[3] / 255;
+        for (let k = 0; k < 3; k++) out.data[j + k] = sample[k] + out.data[j + k] * transmission;
+      }
+    }
+  }
+
+  function renderRepeatedCollars(opts) {
+    const { template, below, layerData } = opts;
+    const { repeat } = template.layered;
+    const [sourceWidth, sourceHeight] = repeat.sourceSize;
+    const source = renderLayered({
+      ...opts, background: null, template: { ...template, width: sourceWidth, height: sourceHeight },
+    });
+    const { width: W, height: H } = template;
+    const out = makeImage(W, H);
+    const blurPx = Math.round(opts.bgBlur ?? template.bgBlur ?? 0);
+    const lift = opts.bgLift ?? template.bgLift ?? 0;
+    const bg = opts.mode !== 'mask' && opts.background && blurredBackground(opts.background, W, H, blurPx);
+    for (let i = 0; i < out.data.length; i += 4) {
+      for (let k = 0; k < 3; k++) out.data[i + k] = bg ? bg[i + k] + (255 - bg[i + k]) * lift : repeat.ground;
+      out.data[i + 3] = 255;
+    }
+    for (const placement of repeat.tiles) {
+      const tile = repeatTile(source, below, layerData, placement);
+      paintRepeatTile(out, tile, placement, repeat.angle);
+    }
+    return out;
+  }
+
+  const renderAny = (opts) => {
+    if (opts.template?.layered?.repeat) return renderRepeatedCollars(opts);
+    return opts.template?.layered ? renderLayered(opts) : render(opts);
+  };
+
+  return { render: renderAny, renderLayered, repeatTransform, uvChecker, FINISH_RAMPS, densifyRungs, quadInverse };
 });

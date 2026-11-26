@@ -64,9 +64,10 @@
     'single-collar-pair-angled': { id: 'pair-angled', template: 'single-collar-pair-angled' }, // Two collars, angled (PSD (6))
     'single-collar-flat': { id: 'flat', template: 'single-collar-flat' },
     'single-collar-flat-pair': { id: 'flat-pair', template: 'single-collar-flat-pair' },
+    'single-collar-diagonal': { id: 'diagonal', template: 'single-collar-diagonal' },
   };
   // /single-collar holds every single-collar view; ?view= picks one (the old side / three-quarter routes redirect here)
-  const VIEWS = { default: 'single-collar', side: 'single-collar-side', 'three-quarter': 'single-collar-three-quarter', 'back': 'single-collar-back', 'angled': 'single-collar-angled', 'low-side': 'single-collar-low-side', 'stack': 'single-collar-stack', 'buckle-front': 'single-collar-buckle-front', 'pair-stacked': 'single-collar-pair-stacked', 'pair-angled': 'single-collar-pair-angled', flat: 'single-collar-flat', 'flat-pair': 'single-collar-flat-pair' };
+  const VIEWS = { default: 'single-collar', side: 'single-collar-side', 'three-quarter': 'single-collar-three-quarter', 'back': 'single-collar-back', 'angled': 'single-collar-angled', 'low-side': 'single-collar-low-side', 'stack': 'single-collar-stack', 'buckle-front': 'single-collar-buckle-front', 'pair-stacked': 'single-collar-pair-stacked', 'pair-angled': 'single-collar-pair-angled', flat: 'single-collar-flat', 'flat-pair': 'single-collar-flat-pair', diagonal: 'single-collar-diagonal' };
   const routeName = location.pathname.replace(/^\/|\/$/g, '');
   const viewKey = routeName === 'single-collar' && VIEWS[new URLSearchParams(location.search).get('view')] ? new URLSearchParams(location.search).get('view') : 'default';
   const pageDef = PAGES[routeName === 'single-collar' ? VIEWS[viewKey] : routeName];
@@ -76,7 +77,7 @@
     label.style.cssText = 'margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;';
     const select = document.createElement('select');
     select.setAttribute('aria-label', 'Collar view');
-    for (const [key, text] of [['side', 'Side'], ['three-quarter', 'Three-quarter'], ['back', 'Back (buckle behind)'], ['angled', 'Angled (keeper in front)'], ['low-side', 'Low side (buckle left)'], ['stack', 'Three collars, stacked'], ['buckle-front', 'Front (buckle forward)'], ['pair-stacked', 'Two collars, stacked'], ['pair-angled', 'Two collars, angled'], ['flat', 'Flat (buckle closed)'], ['flat-pair', 'Two collars, flat and open']]) {
+    for (const [key, text] of [['side', 'Side'], ['three-quarter', 'Three-quarter'], ['back', 'Back (buckle behind)'], ['angled', 'Angled (keeper in front)'], ['low-side', 'Low side (buckle left)'], ['stack', 'Three collars, stacked'], ['buckle-front', 'Front (buckle forward)'], ['pair-stacked', 'Two collars, stacked'], ['pair-angled', 'Two collars, angled'], ['flat', 'Flat (buckle closed)'], ['flat-pair', 'Two collars, flat and open'], ['diagonal', 'Diagonal repeat']]) {
       select.append(new Option(text, key, false, key === viewKey));
     }
     if (viewKey === 'default') select.selectedIndex = -1;

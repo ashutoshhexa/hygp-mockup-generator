@@ -72,13 +72,14 @@ async function renderFrame({ templateId, template, scale, background = null, mod
   const base = await loadRgba(fromRoot(template.base), W, H);
   let below = null, layerData = null, metalPlates = null;
   if (template.layered) {
-    below = await loadRgba(fromRoot(template.layered.below), W, H);
+    const [sourceWidth, sourceHeight] = template.layered.repeat?.sourceSize || [W, H];
+    below = await loadRgba(fromRoot(template.layered.below), sourceWidth, sourceHeight);
     if (template.layered.metalPlates) {
       metalPlates = {};
       const wanted = new Set(Object.values(finishBySlot || {}));
       for (const [fin, file] of Object.entries(template.layered.metalPlates)) {
         if (!wanted.has(fin) || !fs.existsSync(fromRoot(file))) continue;
-        if (!layerCache.has(file)) layerCache.set(file, await loadRgba(fromRoot(file), W, H));
+        if (!layerCache.has(file)) layerCache.set(file, await loadRgba(fromRoot(file), sourceWidth, sourceHeight));
         metalPlates[fin] = layerCache.get(file);
       }
     }
