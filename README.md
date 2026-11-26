@@ -111,3 +111,13 @@ node --max-old-space-size=12000 src/tools/import-psd.js "poc/templates/<file>.ps
   reading order: the text's top-left, top-right, bottom-right, bottom-left) and re-import. The importer stops on any
   slot that would put text sideways, upside down or mirrored. `node src/tools/check-engraving.js` renders every
   single-collar view with real lettering and writes `out/engraving-check/sheet.png`; it exits 1 if a slot fails.
+
+The **Two collars, flat and open** view uses Creatsy PSD (7) in the project root. Its two object groups
+are imported as separate collars. The comparison image uses plain white webbing and silver hardware,
+matching the reference layout without the PSD's sample measurement artwork.
+
+```
+node --max-old-space-size=12000 src/tools/import-psd-variant.js "Dog Collar Mockup Set by Creatsy® (7).psd" single-collar-flat-pair --flat-pair --prune-slots --no-memory-limit --crop 400,0,6400,4800 --width 3000 --name "Single-collar page, Two collars, flat and open (PSD)"
+node src/tools/fit-finishes.js single-collar-flat-pair
+node src/tools/rosegold-shades.js single-collar-flat-pair
+```

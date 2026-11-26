@@ -11,6 +11,9 @@
  * or mirrored stops with an error (src/tools/engraving-axes.js).
  * --engrave-shift dx,dy moves the engraving slots (output px) when the PSD's hidden
  * "Design: buckle (engraved)" layer was never lined up with the buckle face.
+ * --separate-collar-bases clips each collar's layers to its own base instead of a shared base.
+ * --neutral-reference renders an unprinted, unengraved silver reference from the imported layers
+ * when the saved Photoshop composite contains sample artwork.
  *
  * Single-collar PSDs (base layer "Color: fabric" or "Color: collar", "Color: buckles", no "/collar N") become
  * one slot, "collar" (collar 0, centre role), instead of the three-collar stack.
@@ -34,6 +37,7 @@ const { readPsd, initializeCanvas } = require('ag-psd');
 const { fromRoot } = require('../paths');
 const { placedMapper, rasterizeUV, FRAMES, homography } = require('./psd-warp');
 const { axesFromMapper, axesProblems } = require('./engraving-axes');
+const { renderLayered } = require('../mockup/core');
 
 initializeCanvas(() => { throw new Error('canvas not needed'); }, (w, h) => ({ width: w, height: h, data: new Uint8ClampedArray(w * h * 4) }));
 
@@ -374,7 +378,8 @@ async function main() {
   }
 
   /* ---------- 2. collar stack ---------- */
-  const baseAlphaFull = alphaFull(baseEntry.l);
+  let clipBase = baseEntry.l;
+  let baseAlphaFull = alphaFull(clipBase);
   const layers = [];
   const engravings = [];
   const overlay = [];
@@ -411,6 +416,10 @@ async function main() {
     const engr = /^Design: buckle \(engraved\)/.test(name);
     if (!visible(e) && !engr) continue;
     const slot = slotOf(name);
+    if (args.includes('--separate-collar-bases') && baseRe.test(name) && !l.clipping && l !== clipBase) {
+      clipBase = l;
+      baseAlphaFull = alphaFull(l);
+    }
 
     if (engr && engravingPlates[slot.slot] && engravingPlates[slot.slot].engrave === false) {
       log(`engraving left off for ${slot.slot} (engraving-surfaces.json)`);
@@ -480,7 +489,7 @@ async function main() {
     // separators and other empty layers have no pixels at all
     if (!l.placedLayer && (l.right - l.left <= 0 || l.bottom - l.top <= 0)) continue;
     let af = alphaFull(l);
-    if (l !== baseEntry.l) for (let i = 0; i < af.length; i++) af[i] *= baseAlphaFull[i];
+    if (l !== clipBase) for (let i = 0; i < af.length; i++) af[i] *= baseAlphaFull[i];
     const a = down(af);
     af = null;
     const box = bbox(a);
@@ -522,15 +531,11 @@ async function main() {
   /* ---------- write assets ---------- */
   const dir = fromRoot('poc', 'templates', id);
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(path.join(dir, 'layers.bin'), Buffer.concat(chunks));
+  const layerData = Buffer.concat(chunks);
+  fs.writeFileSync(path.join(dir, 'layers.bin'), layerData);
   const belowU8 = Buffer.alloc(OW * OH * 3);
   for (let i = 0; i < belowU8.length; i++) belowU8[i] = Math.round(Math.max(0, Math.min(1, below[i])) * 255);
   await sharp(belowU8, { raw: { width: OW, height: OH, channels: 3 } }).png().toFile(path.join(dir, 'below.png'));
-  // reference photo = Photoshop's own composite, same crop (the watermark sits outside the crop)
-  const comp = psd.imageData;
-  await sharp(Buffer.from(comp.data.buffer, comp.data.byteOffset, comp.data.byteLength), { raw: { width: comp.width, height: comp.height, channels: 4 } })
-    .extract({ left: CX, top: CY, width: CW, height: CH }).resize(OW, OH, { kernel: 'lanczos3' }).removeAlpha().png().toFile(path.join(dir, 'photo.png'));
-
   const slots = {};
   for (const v of single ? [SINGLE] : Object.values(SLOTS)) slots[v.slot] = { label: v.label, role: v.role, collar: v.collar };
   const template = {
@@ -558,6 +563,18 @@ async function main() {
     },
     layers: [],
   };
+  const photoFile = path.join(dir, 'photo.png');
+  if (args.includes('--neutral-reference')) {
+    const data = await sharp(belowU8, { raw: { width: OW, height: OH, channels: 3 } }).ensureAlpha().raw().toBuffer();
+    const reference = { ...template, layered: { ...template.layered, threadColor: [255, 255, 255] } };
+    const photo = renderLayered({ template: reference, layerData, below: { data } });
+    await sharp(photo.data, { raw: { width: OW, height: OH, channels: 4 } }).removeAlpha().png().toFile(photoFile);
+  } else {
+    // Compare with Photoshop's composite at the same crop.
+    const comp = psd.imageData;
+    await sharp(Buffer.from(comp.data.buffer, comp.data.byteOffset, comp.data.byteLength), { raw: { width: comp.width, height: comp.height, channels: 4 } })
+      .extract({ left: CX, top: CY, width: CW, height: CH }).resize(OW, OH, { kernel: 'lanczos3' }).removeAlpha().png().toFile(photoFile);
+  }
   // keep hand-tuned / fitted settings across re-imports (see src/tools/fit-finishes.js)
   const outFile = fromRoot('templates', `${id}.json`);
   if (fs.existsSync(outFile)) {

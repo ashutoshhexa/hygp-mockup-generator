@@ -14,6 +14,8 @@
  *                       "Color: collar N"): base layers are renamed, every piece is numbered
  *                       after the collar base it sits on, and engraving layers named
  *                       "Design: buckle /collar N (engraved)" get the importer's spelling
+ *   --flat-pair         combine the flat mockup's top and bottom object groups, keeping
+ *                       each collar's masks and removing the sample measurement artwork
  *   --drop-engraving N  leave out collar N's engraving layer ("all" for every one): for a buckle
  *                       seen end-on, where the engraved plate faces away from the camera
  *   --prune-slots       drop collar slots that ended up with no layers (a two-collar PSD
@@ -23,7 +25,7 @@ const fs = require('fs');
 const agPsd = require('ag-psd');
 const { fromRoot } = require('../paths');
 
-const OWN = { '--no-memory-limit': 0, '--collar-by-base': 0, '--prune-slots': 0, '--drop-engraving': 1 };
+const OWN = { '--no-memory-limit': 0, '--collar-by-base': 0, '--flat-pair': 0, '--prune-slots': 0, '--drop-engraving': 1 };
 const own = {};
 const rest = [];
 const argv = process.argv.slice(2);
@@ -36,7 +38,40 @@ const id = rest[1];
 const BASE = /^Color: (fabric|collar)\b/;
 const NUM = /\s*\/?\s*collar (\d)\s*/;
 
+function combineFlatPair(psd) {
+  const bottom = psd.children?.find((l) => l.name === 'Object (bottom)');
+  const top = psd.children?.find((l) => l.name === 'Object (top)');
+  if (!bottom?.children || !top?.children) throw new Error('Expected top and bottom object groups for the flat pair.');
+
+  const shadows = [];
+  const product = [];
+  const overlays = [];
+  for (const [group, number] of [[bottom, 2], [top, 1]]) {
+    for (const layer of group.children) {
+      const name = layer.name.trim();
+      if (name === 'How to Measure') continue;
+      if (name === 'drop shadow') {
+        shadows.push(layer);
+      } else if (name.startsWith('Overlay layers')) {
+        overlays.push(...layer.children);
+      } else {
+        if (name === 'Color: fabric') layer.name = `Color: collar ${number}`;
+        if (/^(Design: fabric|Design: buckle \(engraved\)|Color: buckles|Color: seam thread)/.test(name)) {
+          layer.name = `${name} /collar ${number}`;
+        }
+        // Both hardware fills should start from silver when fitting the finish ramps.
+        if (name === 'Color: buckles') layer.vectorFill.color = { r: 255, g: 255, b: 255 };
+        product.push(layer);
+      }
+    }
+  }
+  bottom.name = 'Object';
+  bottom.children = [...shadows, ...product, { name: 'Overlay layers', children: overlays }];
+  psd.children = psd.children.filter((l) => l !== top);
+}
+
 function adjust(psd) {
+  if (own['--flat-pair']) combineFlatPair(psd);
   const all = [];
   (function walk(list) { for (const l of list || []) { all.push(l); walk(l.children); } })(psd.children);
 
@@ -67,7 +102,13 @@ function adjust(psd) {
 }
 
 const readPsd = agPsd.readPsd;
-agPsd.readPsd = (buffer, options = {}) => adjust(readPsd(buffer, own['--no-memory-limit'] ? { ...options, totalMemoryLimit: undefined } : options));
+let readingSource = true;
+agPsd.readPsd = (buffer, options = {}) => {
+  const psd = readPsd(buffer, own['--no-memory-limit'] ? { ...options, totalMemoryLimit: undefined } : options);
+  if (!readingSource) return psd; // Embedded smart objects have their own unrelated layer names.
+  readingSource = false;
+  return adjust(psd);
+};
 
 if (own['--prune-slots']) {
   process.on('beforeExit', () => {
@@ -79,5 +120,6 @@ if (own['--prune-slots']) {
   });
 }
 
+if (own['--flat-pair']) rest.push('--separate-collar-bases', '--neutral-reference');
 process.argv = [process.argv[0], require.resolve('./import-psd'), ...rest];
 require('./import-psd');
