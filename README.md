@@ -121,3 +121,6 @@ node --max-old-space-size=12000 src/tools/import-psd-variant.js "Dog Collar Mock
 node src/tools/fit-finishes.js single-collar-flat-pair
 node src/tools/rosegold-shades.js single-collar-flat-pair
 ```
+
+The **How to measure** view is available at `/single-collar?view=how-to-measure`. Rebuild the
+3000 px sizing guide with `node src/tools/build-measure-card.js`.

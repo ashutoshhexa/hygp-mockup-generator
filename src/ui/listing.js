@@ -65,9 +65,10 @@
     'single-collar-flat': { id: 'flat', template: 'single-collar-flat' },
     'single-collar-flat-pair': { id: 'flat-pair', template: 'single-collar-flat-pair' },
     'single-collar-diagonal': { id: 'diagonal', template: 'single-collar-diagonal' },
+    'single-collar-how-to-measure': { id: 'how-to-measure', template: 'single-collar-how-to-measure', label: 'How to measure', background: 'photo' },
   };
   // /single-collar holds every single-collar view; ?view= picks one (the old side / three-quarter routes redirect here)
-  const VIEWS = { default: 'single-collar', side: 'single-collar-side', 'three-quarter': 'single-collar-three-quarter', 'back': 'single-collar-back', 'angled': 'single-collar-angled', 'low-side': 'single-collar-low-side', 'stack': 'single-collar-stack', 'buckle-front': 'single-collar-buckle-front', 'pair-stacked': 'single-collar-pair-stacked', 'pair-angled': 'single-collar-pair-angled', flat: 'single-collar-flat', 'flat-pair': 'single-collar-flat-pair', diagonal: 'single-collar-diagonal' };
+  const VIEWS = { default: 'single-collar', side: 'single-collar-side', 'three-quarter': 'single-collar-three-quarter', 'back': 'single-collar-back', 'angled': 'single-collar-angled', 'low-side': 'single-collar-low-side', 'stack': 'single-collar-stack', 'buckle-front': 'single-collar-buckle-front', 'pair-stacked': 'single-collar-pair-stacked', 'pair-angled': 'single-collar-pair-angled', flat: 'single-collar-flat', 'flat-pair': 'single-collar-flat-pair', diagonal: 'single-collar-diagonal', 'how-to-measure': 'single-collar-how-to-measure' };
   const routeName = location.pathname.replace(/^\/|\/$/g, '');
   const viewKey = routeName === 'single-collar' && VIEWS[new URLSearchParams(location.search).get('view')] ? new URLSearchParams(location.search).get('view') : 'default';
   const pageDef = PAGES[routeName === 'single-collar' ? VIEWS[viewKey] : routeName];
@@ -77,7 +78,7 @@
     label.style.cssText = 'margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;';
     const select = document.createElement('select');
     select.setAttribute('aria-label', 'Collar view');
-    for (const [key, text] of [['side', 'Side'], ['three-quarter', 'Three-quarter'], ['back', 'Back (buckle behind)'], ['angled', 'Angled (keeper in front)'], ['low-side', 'Low side (buckle left)'], ['stack', 'Three collars, stacked'], ['buckle-front', 'Front (buckle forward)'], ['pair-stacked', 'Two collars, stacked'], ['pair-angled', 'Two collars, angled'], ['flat', 'Flat (buckle closed)'], ['flat-pair', 'Two collars, flat and open'], ['diagonal', 'Diagonal repeat']]) {
+    for (const [key, text] of [['side', 'Side'], ['three-quarter', 'Three-quarter'], ['back', 'Back (buckle behind)'], ['angled', 'Angled (keeper in front)'], ['low-side', 'Low side (buckle left)'], ['stack', 'Three collars, stacked'], ['buckle-front', 'Front (buckle forward)'], ['pair-stacked', 'Two collars, stacked'], ['pair-angled', 'Two collars, angled'], ['flat', 'Flat (buckle closed)'], ['flat-pair', 'Two collars, flat and open'], ['diagonal', 'Diagonal repeat'], ['how-to-measure', 'How to measure']]) {
       select.append(new Option(text, key, false, key === viewKey));
     }
     if (viewKey === 'default') select.selectedIndex = -1;
@@ -86,7 +87,7 @@
     document.querySelector('header.bar')?.append(label);
   }
   const PAGE = pageDef
-    ? { id: pageDef.id, frame: { id: pageDef.id, label: 'Main photo', template: pageDef.template, background: 'decision' } }
+    ? { id: pageDef.id, frame: { id: pageDef.id, label: pageDef.label || 'Main photo', template: pageDef.template, background: pageDef.background || 'decision' } }
     : null;
   const pageQuery = PAGE ? `?page=${PAGE.id}` : '';
 
@@ -936,11 +937,12 @@
     const finishText = `${FIN_LABEL[d.listing.centerColor]} ${single() ? 'buckle' : 'featured'}`;
     $('#sumFinish').textContent = finishText;
     $('#sumNames').textContent = engraved().map((c) => d.listing.collars[c.index].name).filter(Boolean).join(' · ');
-    $('#sumBg').textContent = bgLabel();
+    const background = state.frame.background === 'photo' ? '' : bgLabel();
+    $('#sumBg').textContent = background;
     $('#facts').replaceChildren(
       el('span', { class: 'fact' }, el('i', { class: `metal ${d.listing.centerColor}` }), finishText),
       el('span', { class: 'fact' }, pat),
-      el('span', { class: 'fact' }, bgLabel()),
+      background ? el('span', { class: 'fact' }, background) : '',
       el('span', { class: 'fact dim' }, 'Downloads square or original'));
   }
 
@@ -965,6 +967,13 @@
       state.sideOrder = s.frames.sideOrder;
       state.frame = PAGE ? PAGE.frame : s.frames.frames[0];
       state.template = await api(`/api/templates/${state.frame.template}`);
+      const square = state.template.width === state.template.height;
+      $('#stage').classList.toggle('square', square);
+      if (pageDef?.label) {
+        $('.preview h1').textContent = pageDef.label;
+        $('.preview').setAttribute('aria-label', `${pageDef.label} preview`);
+        $('#photo').setAttribute('aria-label', pageDef.label);
+      }
       if (single()) {
         // one collar: no per-collar overrides, the shared pattern and size are the collar's
         delete state.decision.collarPatterns;
@@ -972,6 +981,8 @@
         document.title = 'Single collar photo · Listing Studio';
         $('.dl-form .help').textContent = 'Choose the shape. Nothing is stretched. The square version is framed close on the collar, so the name stays readable in small thumbnails.';
       }
+      if (square) $('.dl-form .help').textContent = 'Both shapes download the full square image.';
+      if (pageDef?.label) document.title = `${pageDef.label} · Listing Studio`;
       $('#origSize').textContent = `${state.template.width} × ${state.template.height} px`;
       if (savedShade()) applyShade(savedShade());
       const names = state.fonts.map((f) => f.name);
@@ -987,7 +998,9 @@
       renderPattern();
       renderFinish();
       renderNames();
-      renderBg();
+      const fixedBackground = state.frame.background === 'photo';
+      $('#stepBg').hidden = fixedBackground;
+      if (!fixedBackground) renderBg();
       updateSummaries();
       wireDownload();
       $('#retry').addEventListener('click', () => { $('#fail').hidden = true; render(); });

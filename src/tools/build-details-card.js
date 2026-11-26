@@ -1,38 +1,18 @@
 'use strict';
 
 // Rebuild the Details & finishes artwork from the layered open collar and the finish reference.
-const fs = require('fs');
 const sharp = require('sharp');
 const { fromRoot } = require('../paths');
 const { loadFont } = require('../fonts');
-const { renderLayered } = require('../mockup/core');
-const { loadRgba, readTemplate } = require('../mockup/node-io');
+const { readTemplate } = require('../mockup/node-io');
+const { palette, typeset, writeOpenCollarCard } = require('./open-collar-card');
 
 const ID = 'infographic-hd';
 const SIZE = 2700;
-const DIR = `poc/templates/${ID}`;
-const INK = '#195b46';
-const MUTED = '#3e594e';
-const BACKGROUND = '#fcf6ed';
-const CORAL = '#ff7148';
-const MARIGOLD = '#ffb000';
-const SAGE = '#e5eee7';
+const { ink: INK, muted: MUTED, cream: BACKGROUND, coral: CORAL, marigold: MARIGOLD, sage: SAGE } = palette;
 const SWATCH_CENTERS = [547, 1350, 2153];
 const SWATCH_CROPS = [140, 408, 675];
 const COLLAR_SHIFT = { x: -140, y: 270 };
-
-function typeset(font, text, x, y, size, color = INK) {
-  const run = font.layout(text);
-  const scale = size / font.unitsPerEm;
-  let pen = -run.advanceWidth / 2;
-  const glyphs = run.glyphs.map((glyph, index) => {
-    const p = run.positions[index];
-    const path = `<path transform="translate(${pen + p.xOffset} ${p.yOffset})" d="${glyph.path.toSVG()}"/>`;
-    pen += p.xAdvance;
-    return path;
-  });
-  return `<g fill="${color}" transform="translate(${x} ${y}) scale(${scale} ${-scale})">${glyphs.join('')}</g>`;
-}
 
 function artwork(serif, sans) {
   const title = (text, x, y, size) => typeset(serif, text, x, y, size);
@@ -83,64 +63,12 @@ async function buckleSwatches(file) {
   }));
 }
 
-function positionLayer(op) {
-  const layer = { ...op };
-  for (const key of ['alpha', 'mask', 'gray', 'uv']) {
-    const ref = op[key];
-    if (ref) layer[key] = { ...ref, x: ref.x + COLLAR_SHIFT.x, y: ref.y + COLLAR_SHIFT.y };
-  }
-  if (layer.slot) layer.slot = 'collar';
-  return layer;
-}
-
-function layDownShadows(art, below) {
-  // Remove the source studio sweep locally and carry only the upper collar's shadow onto the card.
-  const left = -COLLAR_SHIFT.x;
-  for (let y = 790; y < 1200; y++) {
-    const row = y * below.width * 4;
-    const ground = (below.data[row + left * 4] + below.data[row + (left + SIZE - 1) * 4]) / 2;
-    const taper = Math.min(1, (y - 790) / 30, (1200 - y) / 30);
-    for (let x = 0; x < SIZE; x++) {
-      const shade = 1 - Math.max(0, ground - below.data[row + (left + x) * 4] - 2) / ground * taper;
-      const dst = ((y + COLLAR_SHIFT.y) * SIZE + x) * 4;
-      for (let k = 0; k < 3; k++) art[dst + k] *= shade;
-    }
-  }
-}
-
 async function main() {
-  const source = readTemplate('single-collar-flat-pair');
-  const [serif, sans, swatches, sourceBelow] = await Promise.all([
-    loadFont('DM Serif'), loadFont('Roboto'), buckleSwatches(fromRoot(readTemplate('infographic').base)), loadRgba(fromRoot(source.layered.below)),
+  const [serif, sans, swatches] = await Promise.all([
+    loadFont('DM Serif'), loadFont('Roboto'), buckleSwatches(fromRoot(readTemplate('infographic').base)),
   ]);
-  const raw = { width: SIZE, height: SIZE, channels: 4 };
   const art = await sharp(artwork(serif, sans)).composite(swatches).ensureAlpha().raw().toBuffer();
-  layDownShadows(art, sourceBelow);
-  const { bin, binBytes, stack, overlay, engravings, finishes, finishRamps, finishRampsSource,
-    threadColor, threadTint, threadOpacity, threadSoften } = source.layered;
-  const template = {
-    id: ID, name: 'Quality is in the details', base: `${DIR}/photo.png`,
-    width: SIZE, height: SIZE, renderScale: 1, patternScale: 1, replaceBackground: false,
-    source: { template: source.id, slot: 'top' },
-    slots: { collar: { label: 'Collar', role: 'center', collar: 1 } },
-    layered: {
-      below: `${DIR}/below.png`, bin, binBytes, finishes, finishRamps, finishRampsSource,
-      threadColor, threadTint, threadOpacity, threadSoften,
-      stack: stack.filter((op) => op.slot === 'top').map(positionLayer),
-      overlay: overlay.filter((op) => (op.mask || op.alpha).y < 1200).map(positionLayer),
-      engravings: engravings.filter((op) => op.slot === 'top').map(positionLayer),
-    },
-    layers: [],
-  };
-  const layerData = fs.readFileSync(fromRoot(bin));
-  const reference = { ...template, layered: { ...template.layered, finishRamps: null, threadColor: [255, 255, 255] } };
-  const photo = renderLayered({ template: reference, below: { data: art }, layerData });
-  fs.mkdirSync(fromRoot(DIR), { recursive: true });
-  await Promise.all([
-    sharp(art, { raw }).removeAlpha().png().toFile(fromRoot(template.layered.below)),
-    sharp(photo.data, { raw }).removeAlpha().png().toFile(fromRoot(template.base)),
-  ]);
-  fs.writeFileSync(fromRoot('templates', `${ID}.json`), JSON.stringify(template, null, 1) + '\n');
+  await writeOpenCollarCard({ id: ID, name: 'Quality is in the details', size: SIZE, art, shift: COLLAR_SHIFT, collar: 1 });
 }
 
 main().catch((error) => { console.error(error); process.exitCode = 1; });

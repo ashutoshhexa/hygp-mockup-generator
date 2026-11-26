@@ -62,6 +62,7 @@ const PAGE_DECISIONS = {
   flat: 'preview-flat.json',
   'flat-pair': 'preview-flat-pair.json',
   diagonal: 'preview-diagonal.json',
+  'how-to-measure': 'preview-how-to-measure.json',
 };
 const workingDecision = (page) => (PAGE_DECISIONS[page] ? fromRoot('decisions', PAGE_DECISIONS[page]) : WORKING_DECISION);
 const DEFAULT_DECISION = fromRoot('decisions', 'christmas-gingerbread.json');
