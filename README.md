@@ -84,17 +84,17 @@ npm run batch:single-collar -- --pattern 8941160759511 --upload
 npm run batch:single-collar -- --all --manifest out/single-collar-catalog.json --part 1/2 --workers 2 --upload
 ```
 
-`--upload` sends the six WebPs for each finish to Shopify Files and appends all 18 media IDs to
-the catalog product's `dog_collar` list. It keeps the local files. Run each catalog part only once
-at a time across devices and keep the same output folder when resuming a part.
+`--upload` sends all 18 WebPs in one multipart PUT per catalog product. Each file uses the
+`dog_collar.metal` field and the request uses `mode=append`. Upload names include the finish
+and view, such as `gold-hero.webp`, `gold-listing-01.webp`, and `rosegold-listing-05.webp`.
+Local filenames stay the same. Run each catalog part only once at a time across devices and
+keep the same output folder when resuming a part.
 
-The per-pattern `shopify-upload.json` receipt records confirmed media IDs and attachment.
-Reruns reuse uploaded files and retry an unfinished attachment. If Shopify did not confirm the
-result of an upload, `shopify-upload.pending.json` identifies the affected finish. Check Shopify
-Files after the original process has stopped. If the files exist, record their IDs in
-`shopify-upload.json` under `finishes.<color>` as `{ "fingerprint": "...", "mediaIds": [...] }`,
-using the fingerprint and filename order from the pending record. Then remove the pending
-record and rerun. If no files were created, clear the pending record and rerun to upload again.
+The per-pattern `shopify-upload.json` receipt lets reruns skip a confirmed upload of the same
+files. After an unconfirmed request, check the product's metal collar images against the list in
+`shopify-upload.pending.json`. If all 18 are attached, rename the pending file to
+`shopify-upload.json` to mark the upload complete. If no images were attached, clear the pending
+file and rerun. If only some were attached, resolve those partial attachments before retrying.
 
 ## Generating backgrounds and dog photos
 

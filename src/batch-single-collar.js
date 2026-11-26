@@ -17,7 +17,7 @@ const catalog = require('./catalog');
 const { suggestNames } = require('./name-ideas-ollama');
 const { randomPhone } = require('./engraving');
 const { PHONE_FONT } = require('./fonts');
-const { FINISHES, FINISH_LABELS, planFrame } = require('./mockup/plan');
+const { FINISHES, planFrame } = require('./mockup/plan');
 const { readJson, readTemplate, renderFrame, WEBP_MAX_BYTES } = require('./mockup/node-io');
 const { productImagesApi } = require('./product-images-api');
 
@@ -39,7 +39,7 @@ const USAGE = `Usage:
 
 Part numbers are 1-based. Use the same manifest and part count across devices.
 Output defaults to out/single-collar-batch. Existing square WebPs within 50 KB are skipped.
---upload appends the images to dog_collar for catalog product IDs.`;
+--upload appends the images to dog_collar.metal for catalog product IDs.`;
 
 function digest(value) {
   return createHash('sha256').update(value).digest('hex');
@@ -184,84 +184,52 @@ async function renderPattern(pattern, out, frames, lettering) {
   return { dir, files };
 }
 
-function uploadedIds(media, files, alt) {
-  if (!Array.isArray(media) || media.length !== files.length) {
-    throw new Error(`Upload did not confirm a media ID for each of the ${files.length} files.`);
-  }
-  const byAlt = new Map(media.map((item) => [item?.alt, item]));
-  const matched = files.map(({ name }) => byAlt.get(`${alt} ${name}`));
-  const ordered = matched.every(Boolean) ? matched : media;
-  const ids = ordered.map((item) => String(item?.id || '').replace(/^gid:\/\/shopify\/MediaImage\//, ''));
-  if (ids.some((id) => !/^\d+$/.test(id)) || new Set(ids).size !== files.length) {
-    throw new Error('Upload returned invalid or duplicate media IDs.');
-  }
-  return ids.map((id) => `gid://shopify/MediaImage/${id}`);
-}
-
 async function uploadPattern(pattern, { dir, files }, api) {
   const receipt = path.join(dir, 'shopify-upload.json');
   const pending = path.join(dir, 'shopify-upload.pending.json');
-  const target = { baseUrl: api.baseUrl, productId: pattern.id };
-  const read = () => {
-    if (!fs.existsSync(receipt)) return { ...target, finishes: {}, attachedMediaIds: [] };
+  const target = { baseUrl: api.baseUrl, productId: pattern.id, group: 'dog_collar.metal' };
+  const images = files.map(({ color, file, target: image }) => {
+    const numbered = file.toLowerCase().replace(/^listing-(\d+)\.webp$/, (_, n) => `listing-${n.padStart(2, '0')}.webp`);
+    return { name: `${color}-${numbered}`, data: fs.readFileSync(image) };
+  });
+  const hash = createHash('sha256');
+  for (const { name, data } of images) hash.update(name).update(data);
+  const fingerprint = hash.digest('hex');
+  const record = { ...target, fingerprint, files: images.map(({ name }) => name) };
+  const alreadyUploaded = () => {
+    if (!fs.existsSync(receipt)) return false;
     const saved = JSON.parse(fs.readFileSync(receipt, 'utf8'));
     if (saved.baseUrl !== target.baseUrl || saved.productId !== target.productId) {
       throw new Error(`The upload receipt at ${receipt} belongs to a different API or product. Use a separate --out folder.`);
     }
-    return saved;
+    return saved.group === target.group && saved.fingerprint === fingerprint;
   };
-  const save = (file, data, options) => writeAtomic(file, JSON.stringify(data, null, 2) + '\n', options);
-  const ids = [];
-  for (const color of FINISHES) {
-    const group = files.filter((file) => file.color === color)
-      .map(({ file, target: image }) => ({ name: file, data: fs.readFileSync(image) }));
-    const hash = createHash('sha256');
-    for (const { name, data } of group) hash.update(name).update(data);
-    const fingerprint = hash.digest('hex');
-    const known = (state) => state.finishes[color]?.fingerprint === fingerprint;
-    let state = read();
-    if (!known(state)) {
-      try {
-        save(pending, { ...target, color, fingerprint, files: group.map((file) => file.name) }, { exclusive: true });
-      } catch (error) {
-        if (error.code !== 'EEXIST') throw error;
-        throw new Error(`An upload is in progress or unconfirmed. Check ${pending} before retrying.`);
-      }
-      let clearPending = true;
-      try {
-        state = read();
-        if (!known(state)) {
-          if (!fs.existsSync(receipt)) save(receipt, state);
-          const alt = `${pattern.label} · ${FINISH_LABELS[color]}`;
-          clearPending = false;
-          const media = await api.upload(group, alt);
-          state.finishes[color] = { fingerprint, mediaIds: uploadedIds(media, group, alt) };
-          save(receipt, state);
-          console.log(`[${pattern.id}] uploaded ${group.length} ${FINISH_LABELS[color]} files to Shopify Files`);
-        }
-        clearPending = true;
-      } catch (error) {
-        clearPending ||= Boolean(error.rejectedBeforeUpload);
-        if (clearPending) throw error;
-        throw new Error(`${error.message} Upload is unconfirmed. Check ${pending} before retrying.`);
-      } finally {
-        if (clearPending) fs.unlinkSync(pending);
-      }
-    }
-    ids.push(...state.finishes[color].mediaIds);
-  }
-
-  if (ids.length !== files.length || new Set(ids).size !== ids.length) {
-    throw new Error('The upload receipt does not contain distinct media IDs for all images.');
-  }
-  const state = read();
-  if (JSON.stringify(ids) === JSON.stringify(state.attachedMediaIds)) {
-    console.log(`[${pattern.id}] Shopify images already attached`);
+  if (alreadyUploaded()) {
+    console.log(`[${pattern.id}] Shopify metal collar images already saved`);
     return;
   }
-  await api.appendDogCollar(pattern.id, ids);
-  save(receipt, { ...read(), attachedMediaIds: ids });
-  console.log(`[${pattern.id}] appended ${ids.length} Shopify images to dog_collar`);
+  const json = JSON.stringify(record, null, 2) + '\n';
+  try {
+    writeAtomic(pending, json, { exclusive: true });
+  } catch (error) {
+    if (error.code !== 'EEXIST') throw error;
+    throw new Error(`An upload is in progress or unconfirmed. Check ${pending} before retrying.`);
+  }
+  let clearPending = true;
+  try {
+    if (alreadyUploaded()) return;
+    clearPending = false;
+    await api.saveDogCollarMetal(pattern.id, images);
+    writeAtomic(receipt, json);
+    clearPending = true;
+    console.log(`[${pattern.id}] appended ${images.length} Shopify images to dog_collar.metal`);
+  } catch (error) {
+    clearPending ||= Boolean(error.rejectedBeforeUpload);
+    if (clearPending) throw error;
+    throw new Error(`${error.message} Upload is unconfirmed. Check ${pending} before retrying.`);
+  } finally {
+    if (clearPending) fs.unlinkSync(pending);
+  }
 }
 
 async function runPatterns(patterns, out, upload) {
