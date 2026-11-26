@@ -14,7 +14,7 @@ poc/dogs
 poc/metal-bake
 poc/out
 poc/patterns
-poc/templates/*.psd
+*.psd
 poc/templates/*.jpg
 poc/templates/*.png
 poc/templates/Dog*

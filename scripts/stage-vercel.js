@@ -27,7 +27,7 @@ copyDir(path.join('cache', 'shop'));
 for (const f of ['package.json', 'package-lock.json', 'vercel.json', 'frames.json', path.join('decisions', 'christmas-gingerbread.json')]) copyFile(f);
 
 const readTpl = (id) => JSON.parse(fs.readFileSync(path.join(ROOT, 'templates', `${id}.json`), 'utf8'));
-for (const f of new Set(['creatsy-stack', 'single-collar', 'single-collar-side', 'single-collar-three-quarter', 'single-collar-back', 'single-collar-angled', 'single-collar-low-side', 'single-collar-stack', 'single-collar-buckle-front', 'single-collar-pair-stacked', 'single-collar-pair-angled'].map(readTpl).flatMap((t) => [t.base, t.layered.below, t.layered.bin, ...(t.layered.shade ? [t.layered.shade] : []),
+for (const f of new Set(['creatsy-stack', 'single-collar', 'single-collar-side', 'single-collar-three-quarter', 'single-collar-back', 'single-collar-angled', 'single-collar-low-side', 'single-collar-stack', 'single-collar-buckle-front', 'single-collar-pair-stacked', 'single-collar-pair-angled', 'single-collar-flat'].map(readTpl).flatMap((t) => [t.base, t.layered.below, t.layered.bin, ...(t.layered.shade ? [t.layered.shade] : []),
   ...Object.values(t.layered.metalPlates || {}), ...Object.values(t.layered.metalPlateOptions || {}).flat().map((o) => o.file)]))) copyFile(f);
 
 // lifestyle scenes: the build converts the images; the serverless function reads the list
