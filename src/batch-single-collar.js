@@ -5,6 +5,7 @@ const path = require('path');
 const { createHash, randomUUID } = require('crypto');
 const { parseArgs } = require('util');
 const { Worker, isMainThread, parentPort, workerData } = require('worker_threads');
+const sharp = require('sharp');
 const { fromRoot } = require('./paths');
 
 for (const file of ['.env', '.env.local']) {
@@ -16,8 +17,9 @@ const catalog = require('./catalog');
 const { suggestNames } = require('./name-ideas-ollama');
 const { randomPhone } = require('./engraving');
 const { PHONE_FONT } = require('./fonts');
-const { FINISHES, planFrame } = require('./mockup/plan');
+const { FINISHES, FINISH_LABELS, planFrame } = require('./mockup/plan');
 const { readJson, readTemplate, renderFrame, WEBP_MAX_BYTES } = require('./mockup/node-io');
+const { productImagesApi } = require('./product-images-api');
 
 const EXPORTS = [
   ['Hero.webp', 'single-collar', 'decision'],
@@ -29,12 +31,13 @@ const EXPORTS = [
 ];
 
 const USAGE = `Usage:
-  npm run batch:single-collar -- --pattern <product-id-or-local-image> [--manifest <file>] [--out <folder>]
+  npm run batch:single-collar -- --pattern <product-id-or-local-image> [--manifest <file>] [--out <folder>] [--upload]
   npm run batch:single-collar -- --make-manifest <file>
-  npm run batch:single-collar -- --all [--manifest <file>] [--part N/M] [--workers N] [--out <folder>]
+  npm run batch:single-collar -- --all [--manifest <file>] [--part N/M] [--workers N] [--out <folder>] [--upload]
 
 Part numbers are 1-based. Use the same manifest and part count across devices.
-Output defaults to out/single-collar-batch. Existing images within 50 KB are skipped.`;
+Output defaults to out/single-collar-batch. Existing square WebPs within 50 KB are skipped.
+--upload appends the images to dog_collar for catalog product IDs.`;
 
 function digest(value) {
   return createHash('sha256').update(value).digest('hex');
@@ -112,9 +115,15 @@ function plannedFrames() {
   });
 }
 
-function completed(file) {
+async function completed(file) {
   const size = fs.statSync(file, { throwIfNoEntry: false })?.size;
-  return size > 0 && size <= WEBP_MAX_BYTES;
+  if (!(size > 0 && size <= WEBP_MAX_BYTES)) return false;
+  try {
+    const { format, width, height } = await sharp(fs.readFileSync(file)).metadata();
+    return format === 'webp' && width === height;
+  } catch {
+    return false;
+  }
 }
 
 async function engravingFor(pattern, dir, lettering) {
@@ -141,10 +150,11 @@ async function renderPattern(pattern, out, frames, lettering) {
   const files = FINISHES.flatMap((color) => frames.map((view) => ({
     ...view, color, target: path.join(dir, color, view.file),
   })));
-  const missing = files.filter(({ target }) => !completed(target));
+  const existing = await Promise.all(files.map(({ target }) => completed(target)));
+  const missing = files.filter((_, index) => !existing[index]);
   if (!missing.length) {
     console.log(`[${pattern.id}] ${pattern.label} · already complete`);
-    return;
+    return { dir, files };
   }
   const patternFile = await catalog.ensurePatternFile(pattern.file, pattern.url) || pattern.file;
   fs.mkdirSync(dir, { recursive: true });
@@ -154,20 +164,103 @@ async function renderPattern(pattern, out, frames, lettering) {
   for (const { color, target, template, frame } of missing) {
     const decision = { patternFile, listing: { centerColor: color, collars } };
     const plan = planFrame(frame, template, decision);
-    const webp = await renderFrame({ ...plan, template, patternFile, format: 'webp' });
+    const webp = await renderFrame({ ...plan, template, patternFile, format: 'webp', square: true });
     fs.mkdirSync(path.dirname(target), { recursive: true });
     writeAtomic(target, webp);
   }
   console.log(`[${pattern.id}] wrote ${missing.length} WebP files to ${dir}`);
+  return { dir, files };
 }
 
-async function runPatterns(patterns, out) {
+function uploadedIds(media, files, alt) {
+  if (!Array.isArray(media) || media.length !== files.length) {
+    throw new Error(`Upload did not confirm a media ID for each of the ${files.length} files.`);
+  }
+  const byAlt = new Map(media.map((item) => [item?.alt, item]));
+  const matched = files.map(({ name }) => byAlt.get(`${alt} ${name}`));
+  const ordered = matched.every(Boolean) ? matched : media;
+  const ids = ordered.map((item) => String(item?.id || '').replace(/^gid:\/\/shopify\/MediaImage\//, ''));
+  if (ids.some((id) => !/^\d+$/.test(id)) || new Set(ids).size !== files.length) {
+    throw new Error('Upload returned invalid or duplicate media IDs.');
+  }
+  return ids.map((id) => `gid://shopify/MediaImage/${id}`);
+}
+
+async function uploadPattern(pattern, { dir, files }, api) {
+  const receipt = path.join(dir, 'shopify-upload.json');
+  const pending = path.join(dir, 'shopify-upload.pending.json');
+  const target = { baseUrl: api.baseUrl, productId: pattern.id };
+  const read = () => {
+    if (!fs.existsSync(receipt)) return { ...target, finishes: {}, attachedMediaIds: [] };
+    const saved = JSON.parse(fs.readFileSync(receipt, 'utf8'));
+    if (saved.baseUrl !== target.baseUrl || saved.productId !== target.productId) {
+      throw new Error(`The upload receipt at ${receipt} belongs to a different API or product. Use a separate --out folder.`);
+    }
+    return saved;
+  };
+  const save = (file, data, options) => writeAtomic(file, JSON.stringify(data, null, 2) + '\n', options);
+  const ids = [];
+  for (const color of FINISHES) {
+    const group = files.filter((file) => file.color === color)
+      .map(({ file, target: image }) => ({ name: file, data: fs.readFileSync(image) }));
+    const hash = createHash('sha256');
+    for (const { name, data } of group) hash.update(name).update(data);
+    const fingerprint = hash.digest('hex');
+    const known = (state) => state.finishes[color]?.fingerprint === fingerprint;
+    let state = read();
+    if (!known(state)) {
+      try {
+        save(pending, { ...target, color, fingerprint, files: group.map((file) => file.name) }, { exclusive: true });
+      } catch (error) {
+        if (error.code !== 'EEXIST') throw error;
+        throw new Error(`An upload is in progress or unconfirmed. Check ${pending} before retrying.`);
+      }
+      let clearPending = true;
+      try {
+        state = read();
+        if (!known(state)) {
+          if (!fs.existsSync(receipt)) save(receipt, state);
+          const alt = `${pattern.label} · ${FINISH_LABELS[color]}`;
+          clearPending = false;
+          const media = await api.upload(group, alt);
+          state.finishes[color] = { fingerprint, mediaIds: uploadedIds(media, group, alt) };
+          save(receipt, state);
+          console.log(`[${pattern.id}] uploaded ${group.length} ${FINISH_LABELS[color]} files to Shopify Files`);
+        }
+        clearPending = true;
+      } catch (error) {
+        clearPending ||= Boolean(error.rejectedBeforeUpload);
+        if (clearPending) throw error;
+        throw new Error(`${error.message} Upload is unconfirmed. Check ${pending} before retrying.`);
+      } finally {
+        if (clearPending) fs.unlinkSync(pending);
+      }
+    }
+    ids.push(...state.finishes[color].mediaIds);
+  }
+
+  if (ids.length !== files.length || new Set(ids).size !== ids.length) {
+    throw new Error('The upload receipt does not contain distinct media IDs for all images.');
+  }
+  const state = read();
+  if (JSON.stringify(ids) === JSON.stringify(state.attachedMediaIds)) {
+    console.log(`[${pattern.id}] Shopify images already attached`);
+    return;
+  }
+  await api.appendDogCollar(pattern.id, ids);
+  save(receipt, { ...read(), attachedMediaIds: ids });
+  console.log(`[${pattern.id}] appended ${ids.length} Shopify images to dog_collar`);
+}
+
+async function runPatterns(patterns, out, upload) {
   const frames = plannedFrames();
   const lettering = readJson('decisions/christmas-gingerbread.json').listing.collars[0].font;
+  const api = upload ? productImagesApi() : null;
   let failures = 0;
   for (const pattern of patterns) {
     try {
-      await renderPattern(pattern, out, frames, lettering);
+      const result = await renderPattern(pattern, out, frames, lettering);
+      if (api) await uploadPattern(pattern, result, api);
     } catch (error) {
       failures++;
       console.error(`[${pattern.id}] ${pattern.label}: ${error.message}`);
@@ -176,9 +269,9 @@ async function runPatterns(patterns, out) {
   return failures;
 }
 
-function runWorker(patterns, out) {
+function runWorker(patterns, out, upload) {
   return new Promise((resolve, reject) => {
-    const worker = new Worker(__filename, { workerData: { patterns, out } });
+    const worker = new Worker(__filename, { workerData: { patterns, out, upload } });
     let failures;
     worker.on('message', (result) => { failures = result; });
     worker.once('error', reject);
@@ -198,6 +291,7 @@ async function main() {
     part: { type: 'string' },
     workers: { type: 'string', default: '1' },
     out: { type: 'string' },
+    upload: { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
   } });
   if (args.help || !process.argv.slice(2).length) {
@@ -206,6 +300,9 @@ async function main() {
   }
   if ([args.all, args.pattern, args['make-manifest']].filter(Boolean).length !== 1) {
     throw new Error('Choose one of --pattern, --all, or --make-manifest. Run with --help for examples.');
+  }
+  if (args.upload && (args['make-manifest'] || (args.pattern && !/^\d+$/.test(args.pattern)))) {
+    throw new Error('--upload requires --all or --pattern with a catalog product ID.');
   }
   if (args['make-manifest']) {
     const file = path.resolve(args['make-manifest']);
@@ -231,13 +328,13 @@ async function main() {
   const groups = Array.from({ length: count }, () => []);
   patterns.forEach((p, i) => groups[i % count].push(p));
   const failures = count === 1
-    ? await runPatterns(patterns, out)
-    : (await Promise.all(groups.map((group) => runWorker(group, out)))).reduce((sum, fail) => sum + fail, 0);
+    ? await runPatterns(patterns, out, args.upload)
+    : (await Promise.all(groups.map((group) => runWorker(group, out, args.upload)))).reduce((sum, fail) => sum + fail, 0);
   console.log(`Finished: ${patterns.length - failures} complete, ${failures} failed.`);
   if (failures) process.exitCode = 1;
 }
 
-const task = isMainThread ? main() : runPatterns(workerData.patterns, workerData.out).then((result) => parentPort.postMessage(result));
+const task = isMainThread ? main() : runPatterns(workerData.patterns, workerData.out, workerData.upload).then((result) => parentPort.postMessage(result));
 task.catch((error) => {
   console.error(error.message);
   process.exitCode = 1;

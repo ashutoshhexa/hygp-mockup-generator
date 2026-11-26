@@ -97,7 +97,7 @@ async function backgroundPng(spec, width, height) {
   return paintPreset(spec.preset, width, height);
 }
 
-async function renderFrame({ templateId, template, scale, background = null, mode = 'final', patternFile, patternFileBySlot, finishBySlot, collarBySlot, patternScale, patternScaleBySlot, format = 'png' }) {
+async function renderFrame({ templateId, template, scale, background = null, mode = 'final', patternFile, patternFileBySlot, finishBySlot, collarBySlot, patternScale, patternScaleBySlot, format = 'png', square = false }) {
   template = template || readTemplate(templateId);
   // layered (PSD) templates are baked at one size
   scale = template.layered ? 1 : scale || template.renderScale || 1;
@@ -144,8 +144,12 @@ async function renderFrame({ templateId, template, scale, background = null, mod
   const bgPng = await backgroundPng(background, W, H);
   const bg = bgPng ? await bufferToRgba(bgPng) : null;
   const out = core.render({ template, base, below, layerData, metalPlates, pattern, patternBySlot, finishBySlot, engravingBySlot, background: bg, mode, patternScale, patternScaleBySlot });
-  const image = sharp(Buffer.from(out.data.buffer), { raw: { width: out.width, height: out.height, channels: 4 } }).removeAlpha();
-  return format === 'webp' ? encodeWebpUnder(image, out.width, out.height) : image.png().toBuffer();
+  const crop = square && out.width !== out.height ? core.squareFrame(out.width, out.height, template) : null;
+  const source = crop && (crop.padTop || crop.padBottom) ? core.extendPhotoRows(out, crop.padTop, crop.padBottom) : out;
+  const raw = { width: source.width, height: source.height, channels: 4 };
+  const image = sharp(Buffer.from(source.data.buffer), { raw }).removeAlpha();
+  if (crop) image.extract({ left: crop.left, top: crop.top, width: crop.size, height: crop.size });
+  return format === 'webp' ? encodeWebpUnder(image, crop?.size ?? out.width, crop?.size ?? out.height) : image.png().toBuffer();
 }
 
 /** Render every frame in frames.json for one decision. Returns [{frame, png}] */

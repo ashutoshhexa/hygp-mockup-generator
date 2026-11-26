@@ -78,6 +78,62 @@
     return { width, height, data: new Uint8ClampedArray(width * height * 4) };
   }
 
+  function squareFrame(width, height, template) {
+    if (width <= height) {
+      return { size: width, left: 0, top: Math.floor((height - width) / 2), padTop: 0, padBottom: 0 };
+    }
+    const crop = template?.squareCrop;
+    if (!crop) {
+      const padTop = Math.floor((width - height) / 2);
+      return { size: width, left: 0, top: 0, padTop, padBottom: width - height - padTop };
+    }
+    const scale = width / template.width;
+    const [leftEdge, rightEdge] = crop.beltX.map((x) => x * scale);
+    const [topEdge, bottomEdge] = crop.productY.map((y) => y * scale);
+    const margin = crop.margin ?? 0.09;
+    const size = Math.min(width, Math.round((rightEdge - leftEdge) / (1 - 2 * margin)));
+    const left = clamp(Math.round(leftEdge - margin * size), 0, width - size);
+    const y = Math.round((topEdge + bottomEdge) / 2 - size / 2);
+    const padTop = Math.max(0, -y);
+    return { size, left, top: y + padTop, padTop, padBottom: Math.max(0, y + size - height) };
+  }
+
+  // Extend the backdrop with edge colors that blur sideways as they fade out.
+  function extendPhotoRows(src, top, bottom) {
+    const { width: W, height: H } = src;
+    const out = makeImage(W, H + top + bottom);
+    const d = out.data;
+    d.set(src.data, top * W * 4);
+    const band = Math.min(H, Math.max(2, Math.round(H * 0.01)));
+    const edgeProfile = (y0) => {
+      const row = new Float64Array(W * 3);
+      for (let y = y0; y < y0 + band; y++) for (let x = 0; x < W; x++) {
+        const j = ((y + top) * W + x) * 4;
+        for (let c = 0; c < 3; c++) row[x * 3 + c] += d[j + c];
+      }
+      const prefix = new Float64Array((W + 1) * 3);
+      for (let x = 0; x < W; x++) for (let c = 0; c < 3; c++) {
+        prefix[(x + 1) * 3 + c] = prefix[x * 3 + c] + row[x * 3 + c] / band;
+      }
+      return prefix;
+    };
+    const fill = (prefix, count, rowAt) => {
+      for (let k = 1; k <= count; k++) {
+        const radius = Math.min(Math.floor(W / 3), Math.round(k * 0.6));
+        const y = rowAt(k);
+        for (let x = 0; x < W; x++) {
+          const a = Math.max(0, x - radius), b = Math.min(W, x + radius + 1);
+          const j = (y * W + x) * 4;
+          for (let c = 0; c < 3; c++) d[j + c] = (prefix[b * 3 + c] - prefix[a * 3 + c]) / (b - a) + Math.random() - 0.5;
+          d[j + 3] = 255;
+        }
+      }
+    };
+    if (top) fill(edgeProfile(0), top, (k) => top - k);
+    if (bottom) fill(edgeProfile(H - band), bottom, (k) => top + H - 1 + k);
+    return out;
+  }
+
   function sampleBilinear(img, x, y, wrapX, out) {
     const w = img.width, h = img.height, d = img.data;
     x -= 0.5; y -= 0.5;
@@ -1336,5 +1392,5 @@
     return opts.template?.layered ? renderLayered(opts) : render(opts);
   };
 
-  return { render: renderAny, renderLayered, repeatTransform, uvChecker, FINISH_RAMPS, densifyRungs, quadInverse };
+  return { render: renderAny, renderLayered, repeatTransform, uvChecker, FINISH_RAMPS, densifyRungs, quadInverse, squareFrame, extendPhotoRows };
 });

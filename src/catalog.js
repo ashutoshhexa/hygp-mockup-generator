@@ -22,7 +22,8 @@ const { randomUUID, createHash } = require('crypto');
 
 const { cachePath } = require('./paths');
 
-const API = 'https://d24u4mowe6x0rg.cloudfront.net/api/shopify-collection';
+const STOREFRONT_API_BASE_URL = 'https://d24u4mowe6x0rg.cloudfront.net';
+const API = `${STOREFRONT_API_BASE_URL}/api/shopify-collection`;
 const CACHE = cachePath('shop');
 const PATTERN_DIR = cachePath('patterns');
 const MAX_AGE_MS = 6 * 60 * 60 * 1000;
@@ -287,4 +288,4 @@ function describePattern(rel) {
   return null;
 }
 
-module.exports = { listCollections, listPatterns, listLegacy, ensurePatternFile, patternFileFor, printFraming, framedFile, describePattern };
+module.exports = { STOREFRONT_API_BASE_URL, listCollections, listPatterns, listLegacy, ensurePatternFile, patternFileFor, printFraming, framedFile, describePattern };

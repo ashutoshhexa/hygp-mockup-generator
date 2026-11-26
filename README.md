@@ -59,7 +59,7 @@ collections. Each product ID is exported once, even when it appears in multiple 
 part count on every device. `--out` changes the local output directory.
 
 Each pattern goes to `out/single-collar-batch/<product-id>-<pattern>/<finish>/`, with six WebP
-images per finish. Each file is capped at 50 KB and keeps its template's aspect ratio.
+images per finish. Each file is square, uses the Studio's square framing, and is capped at 50 KB.
 
 | File | View |
 | --- | --- |
@@ -73,7 +73,28 @@ images per finish. Each file is capped at 50 KB and keeps its template's aspect 
 The script uses the first suggestion from the Studio's Name ideas for each pattern, with the same
 engraving on all 18 images. Ollama is used when available, with the Studio's themed names as the
 fallback. The chosen engraving is saved in `design.json` alongside the finish folders. Rerun the
-same command to fill in missing images or replace any that exceed 50 KB.
+same command to fill in missing images or replace any that are non-square or exceed 50 KB.
+
+### Upload to Shopify
+
+Pass `--upload` to use the open product-image endpoints on the same API host as collections and patterns.
+
+```powershell
+npm run batch:single-collar -- --pattern 8941160759511 --upload
+npm run batch:single-collar -- --all --manifest out/single-collar-catalog.json --part 1/2 --workers 2 --upload
+```
+
+`--upload` sends the six WebPs for each finish to Shopify Files and appends all 18 media IDs to
+the catalog product's `dog_collar` list. It keeps the local files. Run each catalog part only once
+at a time across devices and keep the same output folder when resuming a part.
+
+The per-pattern `shopify-upload.json` receipt records confirmed media IDs and attachment.
+Reruns reuse uploaded files and retry an unfinished attachment. If Shopify did not confirm the
+result of an upload, `shopify-upload.pending.json` identifies the affected finish. Check Shopify
+Files after the original process has stopped. If the files exist, record their IDs in
+`shopify-upload.json` under `finishes.<color>` as `{ "fingerprint": "...", "mediaIds": [...] }`,
+using the fingerprint and filename order from the pending record. Then remove the pending
+record and rerun. If no files were created, clear the pending record and rerun to upload again.
 
 ## Generating backgrounds and dog photos
 
