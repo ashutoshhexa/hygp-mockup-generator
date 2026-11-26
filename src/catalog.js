@@ -70,12 +70,14 @@ function patternFileFor(productId, framing) {
 
 async function listCollections() {
   const data = await cachedJson('collections.json', `${API}/`);
-  return (data.custom_collections || []).map((c) => ({
-    id: String(c.id),
-    title: c.title,
-    image: c.image || null,
-    isDefault: !!c.Default_collection,
-  }));
+  return (data.custom_collections || [])
+    .map((c) => ({
+      id: String(c.id),
+      title: c.title,
+      image: c.image || null,
+      isDefault: !!c.Default_collection,
+    }))
+    .sort((a, b) => String(a.title).localeCompare(String(b.title), undefined, { sensitivity: 'base' }));
 }
 
 async function listPatterns(collectionId) {
