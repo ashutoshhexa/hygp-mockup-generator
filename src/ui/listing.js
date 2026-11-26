@@ -21,7 +21,24 @@
   const ICONS = {
     search: '<svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="9" cy="9" r="5.5" fill="none" stroke="currentColor" stroke-width="1.7"/><path d="m13.2 13.2 3.6 3.6" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>',
     refresh: '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M15.5 8A6 6 0 0 0 4.6 6.3M4.5 12a6 6 0 0 0 10.9 1.7M15.8 3.6v4.6h-4.6M4.2 16.4v-4.6h4.6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+    copy: '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round"><rect x="7.25" y="7.25" width="9.5" height="9.5" rx="1.75"/><path d="M5.75 13.25h-.5a1.75 1.75 0 0 1-1.75-1.75V4.75a1.75 1.75 0 0 1 1.75-1.75h6.75a1.75 1.75 0 0 1 1.75 1.75v.5"/></svg>',
+    copyDone: '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m5.5 10.25 3 3 6.25-6.5"/></svg>',
   };
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.setAttribute('readonly', '');
+      ta.style.cssText = 'position:fixed;left:-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      try { return document.execCommand('copy'); } catch { return false; } finally { ta.remove(); }
+    }
+  }
 
   const state = {
     decision: null, frame: null, template: null, sideOrder: null,
@@ -478,10 +495,30 @@
   }
 
   function patternTile(p) {
-    return el('button', {
-      class: `pat ${isActivePattern(p.file) ? 'on' : ''}`, type: 'button', title: p.label, onclick: () => pickPattern(p),
-    }, el('span', { class: 'pat-img' }, el('img', { src: p.thumb || `/files/${encodeURI(p.file)}`, alt: '', loading: 'lazy', decoding: 'async' })),
-    el('span', { class: 'pat-name' }, p.label));
+    const sku = p.label;
+    const copyBtn = el('button', {
+      class: 'pat-copy', type: 'button', title: 'Copy SKU', 'aria-label': `Copy SKU: ${sku}`,
+      onclick: async (e) => {
+        e.stopPropagation();
+        const ok = await copyText(sku);
+        const ico = copyBtn.querySelector('.ico');
+        if (!ok || !ico) return;
+        copyBtn.classList.add('copied');
+        ico.innerHTML = ICONS.copyDone;
+        window.setTimeout(() => {
+          copyBtn.classList.remove('copied');
+          ico.innerHTML = ICONS.copy;
+        }, 1200);
+      },
+    }, icon(ICONS.copy));
+    return el('div', { class: `pat ${isActivePattern(p.file) ? 'on' : ''}`, title: sku },
+      el('span', { class: 'pat-img' },
+        el('button', {
+          class: 'pat-pick', type: 'button', 'aria-label': sku,
+          onclick: () => pickPattern(p),
+        }, el('img', { src: p.thumb || `/files/${encodeURI(p.file)}`, alt: '', loading: 'lazy', decoding: 'async' })),
+        copyBtn),
+      el('span', { class: 'pat-name' }, sku));
   }
 
   function renderPatternGrid() {
