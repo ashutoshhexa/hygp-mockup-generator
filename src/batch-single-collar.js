@@ -29,6 +29,7 @@ const EXPORTS = [
   ['listing-4.webp', 'infographic-hd', 'photo'],
   ['listing-5.webp', 'single-collar-how-to-measure', 'photo'],
 ];
+const GUIDE_RENDER_VERSION = 1;
 
 const USAGE = `Usage:
   npm run batch:single-collar -- --pattern <product-id-or-local-image> [--manifest <file>] [--out <folder>] [--upload]
@@ -139,34 +140,40 @@ async function engravingFor(pattern, dir, lettering) {
       if (error.code !== 'EEXIST') throw error;
     }
   }
-  const { engraving, nameSource } = JSON.parse(fs.readFileSync(checkpoint, 'utf8'));
-  console.log(`[${pattern.id}] ${pattern.label} · ${engraving.name} (${nameSource})`);
-  return engraving;
+  const design = JSON.parse(fs.readFileSync(checkpoint, 'utf8'));
+  console.log(`[${pattern.id}] ${pattern.label} · ${design.engraving.name} (${design.nameSource})`);
+  return design;
 }
 
 async function renderPattern(pattern, out, frames, lettering) {
   const slug = pattern.label.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 72);
   const dir = path.join(out, slug ? `${pattern.id}-${slug}` : pattern.id);
+  const checkpoint = path.join(dir, 'design.json');
+  const saved = fs.existsSync(checkpoint) ? JSON.parse(fs.readFileSync(checkpoint, 'utf8')) : null;
+  const refreshGuides = saved?.guideRenderVersion !== GUIDE_RENDER_VERSION;
   const files = FINISHES.flatMap((color) => frames.map((view) => ({
     ...view, color, target: path.join(dir, color, view.file),
   })));
   const existing = await Promise.all(files.map(({ target }) => completed(target)));
-  const missing = files.filter((_, index) => !existing[index]);
+  const missing = files.filter(({ frame }, index) => !existing[index] || (refreshGuides && frame.background === 'photo'));
   if (!missing.length) {
     console.log(`[${pattern.id}] ${pattern.label} · already complete`);
     return { dir, files };
   }
   const patternFile = await catalog.ensurePatternFile(pattern.file, pattern.url) || pattern.file;
   fs.mkdirSync(dir, { recursive: true });
-  const engraving = await engravingFor(pattern, dir, lettering);
+  const design = await engravingFor(pattern, dir, lettering);
   // Details & finishes uses slot 1. The other five views use slot 0.
-  const collars = [engraving, engraving];
+  const collars = [design.engraving, design.engraving];
   for (const { color, target, template, frame } of missing) {
     const decision = { patternFile, listing: { centerColor: color, collars } };
     const plan = planFrame(frame, template, decision);
     const webp = await renderFrame({ ...plan, template, patternFile, format: 'webp', square: true });
     fs.mkdirSync(path.dirname(target), { recursive: true });
     writeAtomic(target, webp);
+  }
+  if (refreshGuides) {
+    writeAtomic(checkpoint, JSON.stringify({ ...design, guideRenderVersion: GUIDE_RENDER_VERSION }, null, 2) + '\n');
   }
   console.log(`[${pattern.id}] wrote ${missing.length} WebP files to ${dir}`);
   return { dir, files };

@@ -801,7 +801,8 @@
   function softenedShading(template, u8) {
     const Lt = template.layered;
     const s = Lt.threadSoften || 0;
-    const key = `${Lt.bin}|${s}`;
+    // Views can share a layer file while using different bounds and overlay indices.
+    const key = `${template.id}|${template.width}x${template.height}|${Lt.bin}|${s}`;
     if (softMemo.has(key)) return softMemo.get(key);
     const out = [];
     const threads = Lt.stack.filter((o) => o.type === 'fill' && o.role === 'thread');
@@ -903,7 +904,7 @@
   const holeMemo = new Map();
   function stitchHoles(template, u8) {
     const Lt = template.layered;
-    const key = `${Lt.bin}|${Lt.threadOpacity}`;
+    const key = `${template.id}|${Lt.bin}|${Lt.threadOpacity}`;
     if (holeMemo.has(key)) return holeMemo.get(key);
     const out = new Map();
     holeMemo.set(key, out);
