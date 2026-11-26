@@ -1,14 +1,13 @@
 'use strict';
 
 // Rebuild the single-collar size guide from the supplied size chart and fitting steps.
-const sharp = require('sharp');
 const { loadFont } = require('../fonts');
-const { palette, typeset, writeOpenCollarCard } = require('./open-collar-card');
+const { palette, linenArtwork, typeset, writeOpenCollarCard } = require('./open-collar-card');
 
 const SIZE = 3000;
 const ID = 'single-collar-how-to-measure';
 const MEASUREMENT_OFFSET = 735;
-const { ink, muted, cream, coral, marigold, sage, butter } = palette;
+const { ink, muted, coral, marigold, sage, butter } = palette;
 const SIZES = [
   { heading: ['Extra Small'], width: '5/8″', length: '9–11″' },
   { heading: ['Small'], width: '3/4″', length: '11–13″' },
@@ -63,7 +62,6 @@ function artwork(serif, sans) {
       ${text(size.length, x, 2793, 66, ink)}`;
   }).join('');
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}">
-    <rect width="${SIZE}" height="${SIZE}" fill="${cream}"/>
     <g transform="translate(0 -2070)">
       ${title('Collar size chart', 1500, 2260, 105)}
       <path d="M125 2227h590m1570 0h590" stroke="${marigold}" stroke-width="8" stroke-linecap="round"/>
@@ -79,7 +77,7 @@ function artwork(serif, sans) {
     <g transform="translate(0 ${MEASUREMENT_OFFSET})">
       ${title('How to measure', 1500, 233, 185)}
       <path d="M1330 300h340" stroke="${coral}" stroke-width="13" stroke-linecap="round"/>
-      <rect x="125" y="374" width="2750" height="863" rx="55" fill="#fffaf3" stroke="#ebdbca" stroke-width="4"/>
+      <rect x="125" y="374" width="2750" height="863" rx="55" fill="none" stroke="#c2b9a9" stroke-width="4"/>
       ${title('Measure a collar that fits', 1500, 512, 102)}
       ${text('1. Remove the collar', 615, 646, 63, ink)}
       ${text('2. Lay it flat', 1500, 646, 63, ink)}
@@ -98,7 +96,7 @@ function artwork(serif, sans) {
 
 async function main() {
   const [serif, sans] = await Promise.all([loadFont('DM Serif'), loadFont('Roboto')]);
-  const art = await sharp(artwork(serif, sans)).ensureAlpha().raw().toBuffer();
+  const art = await linenArtwork(SIZE, artwork(serif, sans));
   await writeOpenCollarCard({
     id: ID, name: 'How to measure', size: SIZE, art,
     shift: { x: 0, y: 12 + MEASUREMENT_OFFSET }, collar: 0, includeRoseGoldShades: true,

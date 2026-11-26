@@ -1,7 +1,7 @@
 {
  "id": "single-collar-how-to-measure",
  "name": "How to measure",
- "base": "poc/templates/single-collar-how-to-measure/photo.png",
+ "base": "poc/templates/single-collar-how-to-measure/photo-linen.png",
  "width": 3000,
  "height": 3000,
  "renderScale": 1,
@@ -19,7 +19,7 @@
   }
  },
  "layered": {
-  "below": "poc/templates/single-collar-how-to-measure/below.png",
+  "below": "poc/templates/single-collar-how-to-measure/below-linen.png",
   "bin": "poc/templates/single-collar-flat-pair/layers.bin",
   "binBytes": 11701934,
   "finishes": {

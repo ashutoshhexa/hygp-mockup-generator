@@ -4,13 +4,21 @@ const fs = require('fs');
 const path = require('path');
 const sharp = require('sharp');
 const { fromRoot } = require('../paths');
+const { paintPreset, DEFAULT_PRESET } = require('../background');
 const { renderLayered } = require('../mockup/core');
 const { loadRgba, readTemplate } = require('../mockup/node-io');
 
 const palette = {
-  ink: '#195b46', muted: '#3e594e', cream: '#fcf6ed', coral: '#ff7148',
+  ink: '#195b46', muted: '#3e594e', coral: '#ff7148',
   marigold: '#ffb000', sage: '#e5eee7', blush: '#ffe1d3', butter: '#ffedb9',
 };
+
+async function linenArtwork(size, artwork, overlays = []) {
+  const linen = await paintPreset(DEFAULT_PRESET, size, size);
+  const { bgBlur, bgLift } = readTemplate('single-collar-side');
+  const backdrop = await sharp(linen).blur(bgBlur).linear(1 - bgLift, 255 * bgLift).png().toBuffer();
+  return sharp(backdrop).composite([{ input: artwork }, ...overlays]).ensureAlpha().raw().toBuffer();
+}
 
 function typeset(font, text, x, y, size, color = palette.ink) {
   const run = font.layout(text);
@@ -79,12 +87,12 @@ async function writeOpenCollarCard({ id, name, size, art, shift, collar, include
     threadColor, threadTint, threadOpacity, threadSoften } = source.layered;
   const top = (op) => op.slot === 'top';
   const template = {
-    id, name, base: `${dir}/photo.png`,
+    id, name, base: `${dir}/photo-linen.png`,
     width: size, height: size, renderScale: 1, patternScale: 1, replaceBackground: false,
     source: { template: source.id, slot: 'top' },
     slots: { collar: { label: 'Collar', role: 'center', collar } },
     layered: {
-      below: `${dir}/below.png`, bin, binBytes, finishes, finishRamps, finishRampsSource,
+      below: `${dir}/below-linen.png`, bin, binBytes, finishes, finishRamps, finishRampsSource,
       threadColor, threadTint, threadOpacity, threadSoften,
       stack: stack.filter(top).map(position),
       overlay: overlay.filter((op) => (op.mask || op.alpha).y < 1200).map(position),
@@ -105,4 +113,4 @@ async function writeOpenCollarCard({ id, name, size, art, shift, collar, include
   fs.writeFileSync(fromRoot('templates', `${id}.json`), JSON.stringify(template, null, 1) + '\n');
 }
 
-module.exports = { palette, typeset, writeOpenCollarCard };
+module.exports = { palette, linenArtwork, typeset, writeOpenCollarCard };

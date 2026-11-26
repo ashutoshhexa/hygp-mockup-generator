@@ -5,11 +5,11 @@ const sharp = require('sharp');
 const { fromRoot } = require('../paths');
 const { loadFont } = require('../fonts');
 const { readTemplate } = require('../mockup/node-io');
-const { palette, typeset, writeOpenCollarCard } = require('./open-collar-card');
+const { palette, linenArtwork, typeset, writeOpenCollarCard } = require('./open-collar-card');
 
 const ID = 'infographic-hd';
 const SIZE = 2700;
-const { ink: INK, muted: MUTED, cream: BACKGROUND, coral: CORAL, marigold: MARIGOLD, sage: SAGE } = palette;
+const { ink: INK, muted: MUTED, coral: CORAL, marigold: MARIGOLD, sage: SAGE } = palette;
 const SWATCH_CENTERS = [547, 1350, 2153];
 const SWATCH_CROPS = [140, 408, 675];
 const COLLAR_SHIFT = { x: -140, y: 270 };
@@ -24,7 +24,6 @@ function artwork(serif, sans) {
   const guide = (path, x, y) => `<path d="${path}" fill="none" stroke="#73998a" stroke-width="5"/>
     <circle cx="${x}" cy="${y}" r="10" fill="${INK}"/>`;
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${SIZE}" height="${SIZE}">
-    <rect width="${SIZE}" height="${SIZE}" fill="${BACKGROUND}"/>
     ${title('Quality is in the details.', 1350, 326, 176)}
     <path d="M1180 407H1520" stroke="${CORAL}" stroke-width="12" stroke-linecap="round"/>
     ${guide('M485 774V851Q485 892 444 913L217 1030', 217, 1030)}
@@ -67,7 +66,7 @@ async function main() {
   const [serif, sans, swatches] = await Promise.all([
     loadFont('DM Serif'), loadFont('Roboto'), buckleSwatches(fromRoot(readTemplate('infographic').base)),
   ]);
-  const art = await sharp(artwork(serif, sans)).composite(swatches).ensureAlpha().raw().toBuffer();
+  const art = await linenArtwork(SIZE, artwork(serif, sans), swatches);
   await writeOpenCollarCard({ id: ID, name: 'Quality is in the details', size: SIZE, art, shift: COLLAR_SHIFT, collar: 1 });
 }
 

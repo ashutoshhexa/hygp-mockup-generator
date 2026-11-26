@@ -1,7 +1,7 @@
 {
  "id": "infographic-hd",
  "name": "Quality is in the details",
- "base": "poc/templates/infographic-hd/photo.png",
+ "base": "poc/templates/infographic-hd/photo-linen.png",
  "width": 2700,
  "height": 2700,
  "renderScale": 1,
@@ -19,7 +19,7 @@
   }
  },
  "layered": {
-  "below": "poc/templates/infographic-hd/below.png",
+  "below": "poc/templates/infographic-hd/below-linen.png",
   "bin": "poc/templates/single-collar-flat-pair/layers.bin",
   "binBytes": 11701934,
   "finishes": {

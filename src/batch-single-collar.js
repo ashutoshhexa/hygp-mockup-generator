@@ -32,7 +32,7 @@ const EXPORTS = [
   ['listing-4.webp', 'infographic-hd', 'photo'],
   ['listing-5.webp', 'single-collar-how-to-measure', 'photo'],
 ];
-const GUIDE_RENDER_VERSION = 1;
+const GUIDE_RENDER_VERSION = 2;
 const WEBP_RESOLUTION_VERSION = 1;
 
 const USAGE = `Usage:
