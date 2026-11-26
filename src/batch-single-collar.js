@@ -24,12 +24,13 @@ const {
 const { productImagesApi } = require('./product-images-api');
 
 const HERO_TEMPLATE = 'single-collar-side';
+const DETAILS_TEMPLATE = readJson('frames.json').frames.find((frame) => frame.id === 'colors').template;
 const EXPORTS = [
   ['Hero.webp', HERO_TEMPLATE, 'decision'],
   ['listing-1.webp', 'single-collar-three-quarter', 'decision'],
   ['listing-2.webp', 'single-collar-flat', 'decision'],
   ['listing-3.webp', 'single-collar-diagonal', 'decision'],
-  ['listing-4.webp', 'infographic-hd', 'photo'],
+  ['listing-4.webp', DETAILS_TEMPLATE, 'photo'],
   ['listing-5.webp', 'single-collar-how-to-measure', 'photo'],
 ];
 const GUIDE_RENDER_VERSION = 2;
@@ -155,6 +156,7 @@ async function renderPattern(pattern, out, frames, lettering) {
   const checkpoint = path.join(dir, 'design.json');
   const saved = fs.existsSync(checkpoint) ? JSON.parse(fs.readFileSync(checkpoint, 'utf8')) : null;
   const refreshHero = saved?.heroTemplate !== HERO_TEMPLATE;
+  const refreshDetails = saved?.detailsTemplate !== DETAILS_TEMPLATE;
   const refreshGuides = saved?.guideRenderVersion !== GUIDE_RENDER_VERSION;
   const refreshResolution = saved?.webpResolutionVersion !== WEBP_RESOLUTION_VERSION;
   const minEdge = refreshResolution ? WEBP_PREFERRED_SQUARE_EDGE : WEBP_MIN_SQUARE_EDGE;
@@ -162,8 +164,9 @@ async function renderPattern(pattern, out, frames, lettering) {
     ...view, color, target: path.join(dir, color, view.file),
   })));
   const existing = await Promise.all(files.map(({ target }) => completed(target, minEdge)));
-  const missing = files.filter(({ file, frame }, index) =>
-    !existing[index] || (refreshHero && file === 'Hero.webp') || (refreshGuides && frame.background === 'photo'));
+  const missing = files.filter(({ file }, index) =>
+    !existing[index] || (refreshHero && file === 'Hero.webp') ||
+    (refreshDetails && file === 'listing-4.webp') || (refreshGuides && file === 'listing-5.webp'));
   if (!missing.length) {
     console.log(`[${pattern.id}] ${pattern.label} · already complete`);
     return { dir, files };
@@ -180,9 +183,9 @@ async function renderPattern(pattern, out, frames, lettering) {
     fs.mkdirSync(path.dirname(target), { recursive: true });
     writeAtomic(target, webp);
   }
-  if (refreshHero || refreshGuides || refreshResolution) {
+  if (refreshHero || refreshDetails || refreshGuides || refreshResolution) {
     writeAtomic(checkpoint, JSON.stringify({
-      ...design, heroTemplate: HERO_TEMPLATE, guideRenderVersion: GUIDE_RENDER_VERSION,
+      ...design, heroTemplate: HERO_TEMPLATE, detailsTemplate: DETAILS_TEMPLATE, guideRenderVersion: GUIDE_RENDER_VERSION,
       webpResolutionVersion: WEBP_RESOLUTION_VERSION,
     }, null, 2) + '\n');
   }
