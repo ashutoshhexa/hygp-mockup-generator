@@ -6,6 +6,7 @@ poc/out/
 
 # source PSDs are huge (670 MB) and stay local; the layers.bin built from them IS committed, so a clone can run
 *.psd
+!/poc/templates/plastic-blender-preview/plastic-editable.psd
 
 # working state written by the Studio
 decisions/preview.json

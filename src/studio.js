@@ -62,6 +62,7 @@ const PAGE_DECISIONS = {
   flat: 'preview-flat.json',
   'flat-pair': 'preview-flat-pair.json',
   diagonal: 'preview-diagonal.json',
+  plastic: 'preview-plastic.json',
   'how-to-measure': 'preview-how-to-measure.json',
 };
 const workingDecision = (page) => (PAGE_DECISIONS[page] ? fromRoot('decisions', PAGE_DECISIONS[page]) : WORKING_DECISION);
@@ -123,6 +124,7 @@ function currentDecision(page) {
   const working = workingDecision(page);
   const file = fs.existsSync(working) ? working : DEFAULT_DECISION;
   const decision = JSON.parse(fs.readFileSync(file, 'utf8'));
+  if (page === 'plastic' && file === DEFAULT_DECISION) decision.listing.centerColor = 'silver';
   // older decisions named Windows fonts; map them onto the storefront list
   for (const c of (decision.listing && decision.listing.collars) || []) {
     c.font = resolveFontName(c.font);

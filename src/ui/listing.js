@@ -64,11 +64,12 @@
     'single-collar-pair-angled': { id: 'pair-angled', template: 'single-collar-pair-angled' }, // Two collars, angled (PSD (6))
     'single-collar-flat': { id: 'flat', template: 'single-collar-flat' },
     'single-collar-flat-pair': { id: 'flat-pair', template: 'single-collar-flat-pair' },
+    'plastic-blender-preview': { id: 'plastic', template: 'plastic-blender-preview', label: 'Plastic collar', defaultBackground: 'photo', noEngraving: ['collar'] },
     'single-collar-diagonal': { id: 'diagonal', template: 'single-collar-diagonal' },
     'single-collar-how-to-measure': { id: 'how-to-measure', template: 'single-collar-how-to-measure', label: 'How to measure', background: 'photo' },
   };
   // /single-collar holds every single-collar view; ?view= picks one (the old side / three-quarter routes redirect here)
-  const VIEWS = { default: 'single-collar', side: 'single-collar-side', 'three-quarter': 'single-collar-three-quarter', 'back': 'single-collar-back', 'angled': 'single-collar-angled', 'low-side': 'single-collar-low-side', 'stack': 'single-collar-stack', 'buckle-front': 'single-collar-buckle-front', 'pair-stacked': 'single-collar-pair-stacked', 'pair-angled': 'single-collar-pair-angled', flat: 'single-collar-flat', 'flat-pair': 'single-collar-flat-pair', diagonal: 'single-collar-diagonal', 'how-to-measure': 'single-collar-how-to-measure' };
+  const VIEWS = { default: 'single-collar', side: 'single-collar-side', 'three-quarter': 'single-collar-three-quarter', 'back': 'single-collar-back', 'angled': 'single-collar-angled', 'low-side': 'single-collar-low-side', 'stack': 'single-collar-stack', 'buckle-front': 'single-collar-buckle-front', 'pair-stacked': 'single-collar-pair-stacked', 'pair-angled': 'single-collar-pair-angled', flat: 'single-collar-flat', 'flat-pair': 'single-collar-flat-pair', diagonal: 'single-collar-diagonal', plastic: 'plastic-blender-preview', 'how-to-measure': 'single-collar-how-to-measure' };
   const routeName = location.pathname.replace(/^\/|\/$/g, '');
   const viewKey = routeName === 'single-collar' && VIEWS[new URLSearchParams(location.search).get('view')] ? new URLSearchParams(location.search).get('view') : 'default';
   const pageDef = PAGES[routeName === 'single-collar' ? VIEWS[viewKey] : routeName];
@@ -78,7 +79,7 @@
     label.style.cssText = 'margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;';
     const select = document.createElement('select');
     select.setAttribute('aria-label', 'Collar view');
-    for (const [key, text] of [['side', 'Side'], ['three-quarter', 'Three-quarter'], ['back', 'Back (buckle behind)'], ['angled', 'Angled (keeper in front)'], ['low-side', 'Low side (buckle left)'], ['stack', 'Three collars, stacked'], ['buckle-front', 'Front (buckle forward)'], ['pair-stacked', 'Two collars, stacked'], ['pair-angled', 'Two collars, angled'], ['flat', 'Flat (buckle closed)'], ['flat-pair', 'Two collars, flat and open'], ['diagonal', 'Diagonal repeat'], ['how-to-measure', 'How to measure']]) {
+    for (const [key, text] of [['side', 'Side'], ['three-quarter', 'Three-quarter'], ['back', 'Back (buckle behind)'], ['angled', 'Angled (keeper in front)'], ['low-side', 'Low side (buckle left)'], ['stack', 'Three collars, stacked'], ['buckle-front', 'Front (buckle forward)'], ['pair-stacked', 'Two collars, stacked'], ['pair-angled', 'Two collars, angled'], ['flat', 'Flat (buckle closed)'], ['flat-pair', 'Two collars, flat and open'], ['diagonal', 'Diagonal repeat'], ['plastic', 'Plastic collar'], ['how-to-measure', 'How to measure']]) {
       select.append(new Option(text, key, false, key === viewKey));
     }
     if (viewKey === 'default') select.selectedIndex = -1;
@@ -577,20 +578,27 @@
   }
 
   /* ---------------- 2. buckle colors ---------------- */
+  function buckleColorLabel(finish) {
+    return state.template?.layered?.plasticTints && finish === 'silver' ? 'White' : FIN_LABEL[finish];
+  }
+
   function renderFinish() {
     const center = state.decision.listing.centerColor;
     const pick = (f) => { state.decision.listing.centerColor = f; renderFinish(); renderNames(); renderApplyRow(); changed(); };
     const options = el('div', { class: 'finish-opts', role: 'radiogroup', 'aria-label': 'Featured color' },
       MockupPlan.FINISHES.map((f) => el('button', {
         class: `finish ${f === center ? 'on' : ''}`, type: 'button', role: 'radio', 'aria-checked': String(f === center), onclick: () => pick(f),
-      }, el('span', { class: `swatch ${f}` }), el('strong', {}, FIN_LABEL[f]), el('small', {}, f === center ? '★ Featured' : 'Feature this'))));
+      }, el('span', { class: `swatch ${f}` }), el('strong', {}, buckleColorLabel(f)), el('small', {}, f === center ? '★ Featured' : 'Feature this'))));
     const map = el('ol', { class: 'collar-map' }, collars().map((c) => el('li', { class: c.role === 'center' ? 'feat' : '' },
       el('span', { class: 'pos' }, c.label), el('span', { class: 'line' }), el('i', { class: `metal ${c.finish}` }), el('strong', {}, FIN_LABEL[c.finish]),
       c.role === 'center' ? el('em', {}, 'Featured') : null)));
     if (single()) {
       options.setAttribute('aria-label', 'Buckle color');
       options.querySelectorAll('small').forEach((s, i) => { s.textContent = MockupPlan.FINISHES[i] === center ? '✓ Selected' : 'Use this'; });
-      $('#finishBody').replaceChildren(...[el('p', { class: 'help' }, 'Pick the buckle and hardware color.'), options, shadePicker()].filter(Boolean));
+      const help = state.template?.layered?.plasticTints
+        ? 'Pick a color for the plastic buckle, adjuster, and metal D-ring. White pairs with a silver D-ring.'
+        : 'Pick the buckle and hardware color.';
+      $('#finishBody').replaceChildren(...[el('p', { class: 'help' }, help), options, shadePicker()].filter(Boolean));
       return;
     }
     $('#finishBody').replaceChildren(
@@ -877,7 +885,7 @@
     const d = state.decision;
     const pat = d.collarPatterns ? 'Mixed patterns' : patternLabel(d.patternFile);
     $('#sumPattern').textContent = pat;
-    const finishText = `${FIN_LABEL[d.listing.centerColor]} ${single() ? 'buckle' : 'featured'}`;
+    const finishText = `${buckleColorLabel(d.listing.centerColor)} ${single() ? 'buckle' : 'featured'}`;
     $('#sumFinish').textContent = finishText;
     $('#sumNames').textContent = engraved().map((c) => d.listing.collars[c.index].name).filter(Boolean).join(' · ');
     const background = state.frame.background === 'photo' ? '' : bgLabel();
@@ -937,6 +945,7 @@
       const l = state.decision.listing;
       if (l.backgroundFile && ![...state.lifestyle, ...state.backgroundFiles].some((b) => b.file === l.backgroundFile)) delete l.backgroundFile;
       if (l.backgroundPreset && l.backgroundPreset !== 'photo' && !state.presets.some((p) => p.id === l.backgroundPreset)) l.backgroundPreset = 'winter-linen';
+      if (pageDef?.defaultBackground && !l.backgroundFile && !l.backgroundPreset) l.backgroundPreset = pageDef.defaultBackground;
       state.collection = 'local';
       renderPattern();
       renderFinish();

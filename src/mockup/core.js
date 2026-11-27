@@ -1086,6 +1086,11 @@
           if (ramps) finIdx = Math.max(0, rampNames.indexOf(fin)); // keep the neutral PSD fill
           else col = (Lt.finishes && Lt.finishes[fin]) || col;
         }
+        if (op.role === 'plastic' && Lt.plasticTints) {
+          const finish = opts.finishBySlot?.[op.slot] || 'silver';
+          const tint = Lt.plasticTints[finish];
+          if (tint) col = col.map((channel, i) => channel * tint[i] / 255);
+        }
         if (op.role === 'thread' && Lt.threadColor) col = Lt.threadColor;
         if (mode === 'mask') col = op.role === 'metal' ? [250, 200, 30] : op.role === 'thread' ? [230, 60, 230] : [255, 255, 255];
         const cr = col[0] / 255, cg = col[1] / 255, cb = col[2] / 255;

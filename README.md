@@ -148,6 +148,12 @@ other two finishes fill the side slots in a fixed order.
    Check the result with **Print direction** and **Masks**.
 4. Reference the template from `frames.json`.
 
+## Blender Plastic Collar view
+
+Start Studio with `npm run studio` and open `/single-collar?view=plastic`. The view renders at 3000 ? 3000 from [the plastic template](templates/plastic-blender-preview.json). The print follows the mesh UVs, while baked fabric lighting carries the weave from the Blender normal map. Print changes and scale controls leave that weave anchored to the collar. The buckle and adjuster use plastic shading and the D-ring uses the existing metal finish ramps.
+
+Build this view in the sibling `research-ps` repo. Its README covers normal map settings, the Blender pass export, packaging, and the Node/Chromium checks. Copy the generated template and the three assets it references into their matching paths here. The Vercel build picks up those paths from the template. The editable source PSD in the same asset folder covers the original camera's front-strip prototype.
+
 ## Importing a layered PSD (preferred)
 
 When a mockup comes as a layered PSD (Creatsy-style: `Color: collar N`, `Design: fabric ... /collar N` smart
